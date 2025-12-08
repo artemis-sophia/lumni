@@ -74,14 +74,14 @@ Edit `.env` and add your API keys. You need at least one provider configured:
 
 **Minimum Setup (Free Tier):**
 - `GROQ_API_KEY` - Get free at https://console.groq.com
-- `DEEPSEEK_API_KEY` - Get free at https://platform.deepseek.com
+- `DEEPSEEK_API_KEY` - Get API key at https://platform.deepseek.com (pay-as-you-go pricing)
 - `MISTRAL_API_KEY` - Get free at https://console.mistral.ai
 - `OPENROUTER_API_KEY` - Get free at https://openrouter.ai
 
 **Recommended Setup (Student Programs):**
 - `GITHUB_TOKEN` - Free via GitHub Education Pack
 - `GROQ_API_KEY` - Free tier (600 RPM)
-- `DEEPSEEK_API_KEY` - Free tier
+- `DEEPSEEK_API_KEY` - Pay-as-you-go API (competitive pricing)
 - `MISTRAL_API_KEY` - Free tier or student plan
 - `CODESTRAL_API_KEY` - Optional, automatically falls back to `MISTRAL_API_KEY` if not set (uses same Mistral API endpoint)
 - `OPENROUTER_API_KEY` - Free tier models available
@@ -319,7 +319,7 @@ When 80% of requests hit rate limits, you'll get alerts.
 ### Free Tier Providers
 
 1. **Groq**: https://console.groq.com - Free tier with 600 RPM
-2. **DeepSeek**: https://platform.deepseek.com - Free tier available
+2. **DeepSeek**: https://platform.deepseek.com - Pay-as-you-go API (competitive pricing)
 3. **Mistral AI**: https://console.mistral.ai - Free tier available
 4. **Codestral**: Uses Mistral API - Automatically falls back to `MISTRAL_API_KEY` if `CODESTRAL_API_KEY` is not set
 5. **OpenRouter**: https://openrouter.ai - Free tier models available

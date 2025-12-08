@@ -13,7 +13,6 @@ This document lists all models available through Lumni that require **zero credi
 1. [Google Gemini](#google-gemini)
 2. [GitHub Models API](#github-models-api)
 3. [Groq](#groq)
-4. [DeepSeek (Rate-Limited Free Tier)](#deepseek-rate-limited-free-tier)
 5. [OpenRouter (Requires Credits)](#openrouter-requires-credits)
 6. [Summary](#summary)
 
@@ -147,46 +146,6 @@ curl -X POST http://localhost:3000/api/v1/chat \
 
 ---
 
-## DeepSeek (Rate-Limited Free Tier)
-
-**Provider**: DeepSeek  
-**Access**: Free tier with API key  
-**Credits Required**: ❌ **NO** - Free tier available (rate-limited)  
-**Rate Limits**: No official limits, but may experience throttling during high traffic
-
-### Available Free Models
-
-| Model | Category | Notes |
-|-------|----------|-------|
-| `deepseek-chat` | Fast | General-purpose chat model, V3 |
-| `deepseek-coder` | Fast | Code-optimized model |
-
-### Access Requirements
-
-- **API Key**: Required (get from [DeepSeek Platform](https://platform.deepseek.com))
-- **Account**: Free DeepSeek account
-- **Cost**: $0.00 - Free tier available (rate-limited)
-- **Rate Limits**: 
-  - No official rate limits published
-  - May experience throttling during high traffic
-  - Free tier has usage limits (check DeepSeek documentation)
-
-### Usage Example
-
-```bash
-curl -X POST http://localhost:3000/api/v1/chat \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "provider": "deepseek",
-    "model": "deepseek-chat",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
-```
-
-**Note**: DeepSeek offers off-peak pricing discounts (up to 75% off) during certain hours, but the free tier is available with rate limits.
-
----
 
 ## OpenRouter (Requires Credits in Balance)
 
@@ -208,7 +167,7 @@ While OpenRouter offers models labeled as "free", they still require:
 - `meta-llama/llama-3.1-8b-instruct` - Fast, general-purpose
 - `microsoft/phi-3-mini-4k-instruct` - Fast, compact model
 - `google/gemini-flash-1.5` - Fast, efficient model
-- `deepseek/deepseek-chat:free` - General-purpose with strong reasoning
+- `deepseek/deepseek-chat:free` - General-purpose with strong reasoning (via OpenRouter)
 
 These are configured in the system but are **not included** in this free models catalogue as they require account credits in balance.
 
@@ -223,8 +182,7 @@ These are configured in the system but are **not included** in this free models 
 | **Google Gemini** | 4 | 4 |
 | **GitHub Models API** | 6 | 6 |
 | **Groq** | 6 | 6 |
-| **DeepSeek** | 2 | 2 |
-| **TOTAL** | **18** | **18** |
+| **TOTAL** | **16** | **16** |
 
 ### Quick Reference
 
@@ -236,8 +194,6 @@ These are configured in the system but are **not included** in this free models 
 - `llama-3.1-8b-instant` (Groq)
 - `mixtral-8x7b-32768` (Groq)
 - `gemma-7b-it` (Groq)
-- `deepseek-chat` (DeepSeek)
-- `deepseek-coder` (DeepSeek)
 
 **Powerful Models (No Credits)**:
 - `gemini-1.5-pro` (Gemini)
@@ -257,7 +213,6 @@ These are configured in the system but are **not included** in this free models 
 | Google Gemini | Free Google Account | ✅ Yes | ❌ No |
 | GitHub Models API | GitHub Pro/Education | ✅ Yes (Token) | ❌ No |
 | Groq | Free Groq Account | ✅ Yes | ❌ No |
-| DeepSeek | Free DeepSeek Account | ✅ Yes | ❌ No (Rate-limited) |
 
 ### Rate Limits Summary
 
@@ -290,7 +245,6 @@ All free models are configured in:
 - **GitHub Models API**: Requires GitHub Pro subscription ($4/month) or free GitHub Education Pack for students
 - **Google Gemini**: Completely free, no subscription needed (rate-limited)
 - **Groq**: Completely free, no subscription needed (rate-limited: 600 RPM, 10K/day)
-- **DeepSeek**: Free tier available with rate limits (no official limits published, may throttle)
 - **OpenRouter**: Not included as it requires account credits even for "free" models
 
 ## Rate-Limited Free Models Summary

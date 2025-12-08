@@ -21,7 +21,7 @@ A plug-and-play API gateway system optimized for teaching AI engineering, design
 - **Google Gemini**: Multiple models via API key
 - **GitHub Models API**: Access via GitHub Pro/Education
 - **Groq**: 600 RPM free tier
-- **DeepSeek**: Free tier available
+- **DeepSeek**: Pay-as-you-go API (competitive pricing)
 - **OpenRouter**: Free tier models (requires account credits)
 
 ### Student Credit Programs

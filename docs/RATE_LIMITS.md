@@ -95,7 +95,7 @@ Rate limits are enforced to ensure fair usage and system stability. Each provide
 **Important Notes**:
 - ⚠️ **Free models require credits in account balance** (even though credits are not consumed)
 - Minimum recommended: $10 in credits for 1,000 requests/day limit
-- Free models include: `meta-llama/llama-3.1-8b-instruct`, `microsoft/phi-3-mini-4k-instruct`, `google/gemini-flash-1.5`, `deepseek/deepseek-chat:free`
+- Free models include: `meta-llama/llama-3.1-8b-instruct`, `microsoft/phi-3-mini-4k-instruct`, `google/gemini-flash-1.5`, `deepseek/deepseek-chat:free` (via OpenRouter)
 - Credits are NOT consumed when using free models, but account must have credits
 
 **Pricing Structure**:

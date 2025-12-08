@@ -43,7 +43,7 @@ def list(
         
         if free_only:
             # Filter to free providers (no credits required)
-            free_providers = ["gemini", "github-copilot", "groq", "deepseek"]
+            free_providers = ["gemini", "github-copilot", "groq"]
             models = [m for m in models if m.provider in free_providers]
         
         if not models:

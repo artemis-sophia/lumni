@@ -41,8 +41,8 @@ MODEL_CATEGORIZATION: dict[str, ModelMetadata] = {
     'anthropic/claude-3-sonnet': ModelMetadata('github-copilot', 'anthropic/claude-3-sonnet', 'powerful'),
     'anthropic/claude-3-opus': ModelMetadata('github-copilot', 'anthropic/claude-3-opus', 'powerful'),
 
-    # DeepSeek (Rate-Limited Free Tier - No Credits Required)
-    # Free tier available with rate limits - no credits needed
+    # DeepSeek (Pay-as-You-Go API - No Free Tier)
+    # Note: DeepSeek API requires pay-as-you-go pricing. Free tier only available for chat interface, not API.
     'deepseek-chat': ModelMetadata('deepseek', 'deepseek-chat', 'fast'),
     'deepseek-coder': ModelMetadata('deepseek', 'deepseek-coder', 'fast'),
 

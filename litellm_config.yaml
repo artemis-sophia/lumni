@@ -50,8 +50,9 @@ model_list:
       model: groq/llama-3.1-405b-reasoning
       api_key: os.environ/GROQ_API_KEY
 
-  # DeepSeek Models (Rate-Limited Free Tier - No Credits Required)
-  # Free tier available with rate limits - no credits needed
+  # DeepSeek Models (Pay-as-You-Go API - No Free Tier)
+  # DeepSeek API requires pay-as-you-go pricing (no free tier for API access)
+  # Free tier is only available for chat interface (chat.deepseek.com), not API
   - model_name: deepseek-chat
     litellm_params:
       model: deepseek/deepseek-chat
