@@ -44,41 +44,29 @@ if command -v poetry &> /dev/null; then
     poetry install
     echo "Dependencies installed with Poetry"
     
-    # Get Poetry's bin directory
-    POETRY_BIN_DIR=$(poetry env info --path 2>/dev/null | head -1)
-    if [ -z "$POETRY_BIN_DIR" ]; then
-        POETRY_BIN_DIR="$HOME/.local/share/pypoetry/venv/bin"
-    else
-        POETRY_BIN_DIR="$POETRY_BIN_DIR/bin"
-    fi
-    
     # Create local bin directory if it doesn't exist
     LOCAL_BIN_DIR="$HOME/.local/bin"
     mkdir -p "$LOCAL_BIN_DIR"
     
+    # Get the project root directory (where setup.sh is located)
+    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
     # Create lumni wrapper script
-    cat > "$LOCAL_BIN_DIR/lumni" << 'LUMNI_EOF'
+    cat > "$LOCAL_BIN_DIR/lumni" << LUMNI_EOF
 #!/bin/bash
 # Lumni CLI wrapper script
 # This script ensures lumni runs from the correct Poetry environment
 
-# Try to find Poetry environment
+PROJECT_ROOT="$PROJECT_ROOT"
+
 if command -v poetry &> /dev/null; then
-    # Get the project directory (where this script was installed from)
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Try to find project root by looking for pyproject.toml
-    PROJECT_ROOT="$SCRIPT_DIR"
-    while [ ! -f "$PROJECT_ROOT/pyproject.toml" ] && [ "$PROJECT_ROOT" != "/" ]; do
-        PROJECT_ROOT="$(dirname "$PROJECT_ROOT")"
-    done
-    
-    if [ -f "$PROJECT_ROOT/pyproject.toml" ]; then
-        cd "$PROJECT_ROOT" || exit 1
-        exec poetry run lumni "$@"
+    if [ -f "\$PROJECT_ROOT/pyproject.toml" ]; then
+        cd "\$PROJECT_ROOT" || exit 1
+        exec poetry run lumni "\$@"
     else
-        # Fallback: try to run from current directory
-        exec poetry run lumni "$@"
+        echo "ERROR: Lumni project not found at \$PROJECT_ROOT"
+        echo "Please run setup.sh from the project directory"
+        exit 1
     fi
 else
     echo "ERROR: Poetry not found. Please install Poetry or use 'poetry run lumni'"
