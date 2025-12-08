@@ -20,91 +20,85 @@ PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
 echo "Python version: $PYTHON_VERSION"
 echo ""
 
-# Check if Poetry is installed
-if ! command -v poetry &> /dev/null; then
-    echo "WARNING: Poetry not found. Installing Poetry..."
-    curl -sSL https://install.python-poetry.org | python3 -
-    export PATH="$HOME/.local/bin:$PATH"
-    echo "Poetry installed"
-    echo ""
-fi
-
-# Create virtual environment if using pip
-if [ ! -d "venv" ] && ! command -v poetry &> /dev/null; then
+# Create virtual environment
+if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
     python3 -m venv venv
-    source venv/bin/activate
     echo "Virtual environment created"
     echo ""
 fi
 
-# Install dependencies and package
-echo "Installing dependencies..."
-if command -v poetry &> /dev/null; then
-    poetry install
-    echo "Dependencies installed with Poetry"
-    
-    # Create local bin directory if it doesn't exist
-    LOCAL_BIN_DIR="$HOME/.local/bin"
-    mkdir -p "$LOCAL_BIN_DIR"
-    
-    # Get the project root directory (where setup.sh is located)
-    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Create lumni wrapper script
-    cat > "$LOCAL_BIN_DIR/lumni" << LUMNI_EOF
+# Activate virtual environment
+echo "Activating virtual environment..."
+source venv/bin/activate
+echo "Virtual environment activated"
+echo ""
+
+# Upgrade pip and install build tools
+echo "Upgrading pip and installing build tools..."
+pip install --upgrade pip setuptools wheel
+echo ""
+
+# Install package in editable mode (this installs dependencies and creates 'lumni' command)
+echo "Installing Lumni package and dependencies..."
+pip install -e .
+echo "Package installed in editable mode"
+echo ""
+
+# Create local bin directory if it doesn't exist
+LOCAL_BIN_DIR="$HOME/.local/bin"
+mkdir -p "$LOCAL_BIN_DIR"
+
+# Get the project root directory (where setup.sh is located)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Create lumni wrapper script that uses the installed entry point
+cat > "$LOCAL_BIN_DIR/lumni" << 'LUMNI_EOF'
 #!/bin/bash
 # Lumni CLI wrapper script
-# This script ensures lumni runs from the correct Poetry environment
+# This script uses the installed lumni command from pip install -e .
 
-PROJECT_ROOT="$PROJECT_ROOT"
-
-if command -v poetry &> /dev/null; then
-    if [ -f "\$PROJECT_ROOT/pyproject.toml" ]; then
-        cd "\$PROJECT_ROOT" || exit 1
-        exec poetry run lumni "\$@"
-    else
-        echo "ERROR: Lumni project not found at \$PROJECT_ROOT"
-        echo "Please run setup.sh from the project directory"
-        exit 1
-    fi
+# Try to use the installed 'lumni' command (from pip install -e .)
+if command -v lumni &> /dev/null; then
+    exec lumni "$@"
+# Fallback to python -m if entry point not found
+elif [ -f "$PROJECT_ROOT/app/cli/main.py" ]; then
+    cd "$PROJECT_ROOT" || exit 1
+    exec python3 -m app.cli.main "$@"
 else
-    echo "ERROR: Poetry not found. Please install Poetry or use 'poetry run lumni'"
+    echo "ERROR: Lumni CLI not found. Please run setup.sh to install."
     exit 1
 fi
 LUMNI_EOF
-    
-    chmod +x "$LOCAL_BIN_DIR/lumni"
-    echo "Created lumni CLI wrapper at $LOCAL_BIN_DIR/lumni"
-    
-    # Add to PATH if not already there
-    SHELL_RC=""
-    if [ -n "$ZSH_VERSION" ]; then
-        SHELL_RC="$HOME/.zshrc"
-    elif [ -n "$BASH_VERSION" ]; then
-        SHELL_RC="$HOME/.bashrc"
-    fi
-    
-    if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
-        if ! grep -q "$LOCAL_BIN_DIR" "$SHELL_RC" 2>/dev/null; then
-            echo "" >> "$SHELL_RC"
-            echo "# Lumni CLI - Added by setup script" >> "$SHELL_RC"
-            echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$SHELL_RC"
-            echo "Added $LOCAL_BIN_DIR to PATH in $SHELL_RC"
-            echo "NOTE: Run 'source $SHELL_RC' or restart your terminal to use 'lumni' command"
-        else
-            echo "PATH already includes $LOCAL_BIN_DIR"
-        fi
-    fi
-    
-    # Also add to current session
-    export PATH="$LOCAL_BIN_DIR:$PATH"
-    
-else
-    pip install -r requirements.txt
-    echo "Dependencies installed with pip"
-    echo "NOTE: For pip installation, use 'python3 -m app.cli.main' instead of 'lumni'"
+
+# Replace PROJECT_ROOT in the script
+sed -i.bak "s|\$PROJECT_ROOT|$PROJECT_ROOT|g" "$LOCAL_BIN_DIR/lumni" && rm -f "$LOCAL_BIN_DIR/lumni.bak"
+
+chmod +x "$LOCAL_BIN_DIR/lumni"
+echo "Created lumni CLI wrapper at $LOCAL_BIN_DIR/lumni"
+
+# Add to PATH if not already there
+SHELL_RC=""
+if [ -n "$ZSH_VERSION" ]; then
+    SHELL_RC="$HOME/.zshrc"
+elif [ -n "$BASH_VERSION" ]; then
+    SHELL_RC="$HOME/.bashrc"
 fi
+
+if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
+    if ! grep -q "$LOCAL_BIN_DIR" "$SHELL_RC" 2>/dev/null; then
+        echo "" >> "$SHELL_RC"
+        echo "# Lumni CLI - Added by setup script" >> "$SHELL_RC"
+        echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$SHELL_RC"
+        echo "Added $LOCAL_BIN_DIR to PATH in $SHELL_RC"
+        echo "NOTE: Run 'source $SHELL_RC' or restart your terminal to use 'lumni' command"
+    else
+        echo "PATH already includes $LOCAL_BIN_DIR"
+    fi
+fi
+
+# Also add to current session
+export PATH="$LOCAL_BIN_DIR:$PATH"
 echo ""
 
 # Copy configuration files
@@ -443,11 +437,7 @@ echo ""
 
 # Initialize database
 echo "Initializing database..."
-if command -v poetry &> /dev/null; then
-    poetry run alembic upgrade head
-else
-    python3 -m alembic upgrade head
-fi
+alembic upgrade head
 echo "Database initialized"
 echo ""
 
@@ -467,20 +457,16 @@ for status in "${PROVIDER_STATUS[@]}"; do
 done
 echo ""
 echo "To start the gateway:"
-if command -v poetry &> /dev/null; then
-    echo "  poetry run uvicorn app.main:app --host 0.0.0.0 --port 3000"
+echo "  source venv/bin/activate"
+echo "  uvicorn app.main:app --host 0.0.0.0 --port 3000"
+echo ""
+if [ -f "$HOME/.local/bin/lumni" ]; then
+    echo "To use the CLI:"
+    echo "  (After restarting terminal or running 'source ~/.bashrc' / 'source ~/.zshrc'):"
+    echo "  lumni --help"
+    echo "  lumni settings menu"
+    echo "  lumni providers list"
     echo ""
-    if [ -f "$HOME/.local/bin/lumni" ]; then
-        echo "To use the CLI:"
-        echo "  (After restarting terminal or running 'source ~/.bashrc' / 'source ~/.zshrc'):"
-        echo "  lumni --help"
-        echo "  lumni settings menu"
-        echo "  lumni providers list"
-        echo ""
-    fi
-else
-    echo "  source venv/bin/activate"
-    echo "  python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3000"
 fi
 echo ""
 echo "For detailed instructions, see QUICKSTART.md or SETUP.md"

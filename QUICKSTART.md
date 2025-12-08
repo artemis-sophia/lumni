@@ -18,37 +18,37 @@ setup.bat
 
 This will automatically:
 - Check Python version
-- Install dependencies (Poetry or pip)
+- Create virtual environment
+- Install dependencies and package
 - Create configuration files
 - Initialize database
 - Set up directories
+- Install CLI command to PATH
 
 **After setup completes**, edit `config.json` and `.env` with your API keys, then start the gateway.
 
 ## Manual Setup
 
-### Step 1: Install Dependencies
+### Step 1: Install Package
 
 **Linux/Mac:**
 ```bash
-# Using Poetry (recommended)
-poetry install
-
-# Or using pip
+# Create virtual environment
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+
+# Install in editable mode (includes CLI command)
+pip install -e .
 ```
 
 **Windows:**
 ```cmd
-REM Using Poetry (recommended)
-poetry install
-
-REM Or using pip
+REM Create virtual environment
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements.txt
+
+REM Install in editable mode (includes CLI command)
+pip install -e .
 ```
 
 ### Step 2: Configure
@@ -73,40 +73,24 @@ Then edit both files:
 
 **Linux/Mac:**
 ```bash
-# With Poetry
-poetry run alembic upgrade head
-
-# With pip/venv
-python3 -m alembic upgrade head
+alembic upgrade head
 ```
 
 **Windows:**
 ```cmd
-REM With Poetry
-poetry run alembic upgrade head
-
-REM With pip/venv
-python -m alembic upgrade head
+alembic upgrade head
 ```
 
 ### Step 4: Start the Gateway
 
 **Linux/Mac:**
 ```bash
-# With Poetry
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 3000
-
-# With pip/venv
-python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3000
+uvicorn app.main:app --host 0.0.0.0 --port 3000
 ```
 
 **Windows:**
 ```cmd
-REM With Poetry
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 3000
-
-REM With pip/venv
-python -m uvicorn app.main:app --host 0.0.0.0 --port 3000
+uvicorn app.main:app --host 0.0.0.0 --port 3000
 ```
 
 You should see:
@@ -161,7 +145,7 @@ Your gateway is now running. The system will automatically:
 - Add more providers for better redundancy
 - Set up monitoring alerts
 - Read `SETUP.md` for advanced configuration
-- Use the CLI: `lumni --help` (see [INSTALL.md](./INSTALL.md) for PATH setup)
+- Use the CLI: `lumni --help` (after setup, or `python -m app.cli.main --help` if not installed)
 
 ## Troubleshooting
 
@@ -177,9 +161,9 @@ Your gateway is now running. The system will automatically:
 - Ensure Python 3.11+ is installed
 - On Windows, add Python to PATH during installation
 
-**Poetry not found?**
-- Install from https://python-poetry.org/docs/#installation
-- Or use pip/venv method instead
+**CLI command not found?**
+- Run `source ~/.bashrc` or `source ~/.zshrc` after setup
+- Or use `python -m app.cli.main` directly
 
 **Need help?**
 - See `SETUP.md` for detailed instructions

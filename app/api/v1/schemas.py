@@ -3,14 +3,22 @@ Pydantic schemas for API request/response types
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any, Literal
+from pydantic import BaseModel, Field, field_validator
 
 
 class Message(BaseModel):
     """Chat message"""
-    role: str  # system, user, assistant
-    content: str
+    role: Literal["system", "user", "assistant"] = Field(..., description="Message role")
+    content: str = Field(..., min_length=1, max_length=1000000, description="Message content")
+    
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        """Validate message content is not empty"""
+        if not v or not v.strip():
+            raise ValueError("Message content cannot be empty")
+        return v.strip()
 
 
 class ChatRequest(BaseModel):

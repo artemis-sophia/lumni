@@ -18,17 +18,7 @@ if errorlevel 1 (
 python --version
 echo.
 
-REM Check if Poetry is installed
-poetry --version >nul 2>&1
-if errorlevel 1 (
-    echo Poetry not found. Installing Poetry...
-    powershell -Command "(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -"
-    echo Poetry installed. Please restart your terminal and run this script again.
-    echo Or add Poetry to your PATH manually.
-    exit /b 1
-)
-
-REM Create virtual environment if using pip
+REM Create virtual environment
 if not exist "venv" (
     echo Creating virtual environment...
     python -m venv venv
@@ -36,14 +26,25 @@ if not exist "venv" (
     echo.
 )
 
-REM Install dependencies
-echo Installing dependencies...
-poetry install
+REM Activate virtual environment
+echo Activating virtual environment...
+call venv\Scripts\activate.bat
+echo Virtual environment activated
+echo.
+
+REM Upgrade pip and install build tools
+echo Upgrading pip and installing build tools...
+python -m pip install --upgrade pip setuptools wheel
+echo.
+
+REM Install package in editable mode
+echo Installing Lumni package and dependencies...
+pip install -e .
 if errorlevel 1 (
-    echo ERROR: Failed to install dependencies
+    echo ERROR: Failed to install package
     exit /b 1
 )
-echo Dependencies installed
+echo Package installed in editable mode
 echo.
 
 REM Copy configuration files
@@ -76,7 +77,7 @@ echo.
 
 REM Initialize database
 echo Initializing database...
-poetry run alembic upgrade head
+alembic upgrade head
 if errorlevel 1 (
     echo ERROR: Failed to initialize database
     exit /b 1
@@ -93,8 +94,12 @@ echo   1. Edit config.json and add your API keys
 echo   2. Edit .env and set your unified API key
 echo.
 echo To start the gateway:
-echo   poetry run uvicorn app.main:app --host 0.0.0.0 --port 3000
+echo   venv\Scripts\activate
+echo   uvicorn app.main:app --host 0.0.0.0 --port 3000
+echo.
+echo To use the CLI:
+echo   venv\Scripts\activate
+echo   lumni --help
 echo.
 echo For detailed instructions, see QUICKSTART.md or SETUP.md
 echo.
-

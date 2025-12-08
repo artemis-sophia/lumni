@@ -58,37 +58,39 @@ setup.bat
 
 ### Manual Setup
 
-1. **Install Dependencies**
+1. **Create Virtual Environment**
    ```bash
-   # Using Poetry (recommended)
-   poetry install
-   
-   # Or using pip
    python3 -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
+   ```
+
+2. **Install Package**
+   ```bash
+   # Install in editable mode (recommended - includes CLI command)
+   pip install -e .
+   
+   # Or install dependencies only
    pip install -r requirements.txt
    ```
 
-2. **Configure**
+3. **Configure**
    ```bash
    cp config.example.json config.json
    cp .env.example .env
    ```
    Edit `.env` with your API keys and `config.json` with your unified API key.
 
-3. **Initialize Database**
+4. **Initialize Database**
    ```bash
-   poetry run alembic upgrade head
-   # Or: python3 -m alembic upgrade head
+   alembic upgrade head
    ```
 
-4. **Start the Gateway**
+5. **Start the Gateway**
    ```bash
-   poetry run uvicorn app.main:app --host 0.0.0.0 --port 3000
-   # Or: python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3000
+   uvicorn app.main:app --host 0.0.0.0 --port 3000
    ```
 
-5. **Use the CLI** (after restarting terminal or running `source ~/.bashrc` / `source ~/.zshrc`)
+6. **Use the CLI** (after restarting terminal or running `source ~/.bashrc` / `source ~/.zshrc`)
    ```bash
    lumni --help
    lumni settings menu
@@ -150,25 +152,31 @@ For detailed architecture information, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 ## Requirements
 
 - Python 3.11+
-- Poetry (recommended) or pip
+- pip (Python package manager)
 - SQLite (default) or PostgreSQL
 - API keys for at least one provider
 
 ## Installation
 
-### Using Poetry (Recommended)
+### Recommended: Editable Install (includes CLI command)
 
 ```bash
-poetry install
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -e .
 ```
 
-### Using pip
+This installs the package in editable mode and creates the `lumni` CLI command.
+
+### Alternative: Install Dependencies Only
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
+
+Note: This method doesn't install the CLI command. Use `python -m app.cli.main` instead.
 
 ## Configuration
 
@@ -191,14 +199,15 @@ See [SETUP.md](./SETUP.md) for detailed configuration options.
 
 ```bash
 # Install development dependencies
-poetry install --with dev
+pip install -e ".[dev]"
+# Or: pip install -r requirements-dev.txt
 
 # Run tests
-poetry run pytest
+pytest
 
 # Format code
-poetry run black app/
-poetry run ruff check app/
+black app/
+ruff check app/
 ```
 
 ## Contributing
@@ -219,4 +228,3 @@ Built with:
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
 - [LiteLLM](https://github.com/BerriAI/litellm) - Unified LLM API
 - [Portkey AI](https://portkey.ai/) - Observability and monitoring
-- [Poetry](https://python-poetry.org/) - Dependency management

@@ -14,6 +14,7 @@ from app.storage.models import (
     TaskClassifications,
     ModelSelections
 )
+from app.utils.exceptions import DatabaseError
 
 
 class UsageMetricsRepository:
@@ -21,11 +22,15 @@ class UsageMetricsRepository:
 
     @staticmethod
     def save(db: Session, metric: UsageMetrics) -> UsageMetrics:
-        """Save usage metric"""
-        db.add(metric)
-        db.commit()
-        db.refresh(metric)
-        return metric
+        """Save usage metric with transaction rollback on error"""
+        try:
+            db.add(metric)
+            db.commit()
+            db.refresh(metric)
+            return metric
+        except Exception as e:
+            db.rollback()
+            raise DatabaseError(f"Failed to save usage metric: {str(e)}", {"exception": str(e)})
 
     @staticmethod
     def get_by_provider(
@@ -63,11 +68,15 @@ class ModelRateLimitsRepository:
 
     @staticmethod
     def save(db: Session, rate_limit: ModelRateLimits) -> ModelRateLimits:
-        """Save model rate limit"""
-        db.merge(rate_limit)
-        db.commit()
-        db.refresh(rate_limit)
-        return rate_limit
+        """Save model rate limit with transaction rollback on error"""
+        try:
+            db.merge(rate_limit)
+            db.commit()
+            db.refresh(rate_limit)
+            return rate_limit
+        except Exception as e:
+            db.rollback()
+            raise DatabaseError(f"Failed to save model rate limit: {str(e)}", {"exception": str(e)})
 
     @staticmethod
     def get(db: Session, provider: str, model: str) -> Optional[ModelRateLimits]:
@@ -90,11 +99,15 @@ class ProviderStateRepository:
 
     @staticmethod
     def save(db: Session, state: ProviderState) -> ProviderState:
-        """Save provider state"""
-        db.merge(state)
-        db.commit()
-        db.refresh(state)
-        return state
+        """Save provider state with transaction rollback on error"""
+        try:
+            db.merge(state)
+            db.commit()
+            db.refresh(state)
+            return state
+        except Exception as e:
+            db.rollback()
+            raise DatabaseError(f"Failed to save provider state: {str(e)}", {"exception": str(e)})
 
     @staticmethod
     def get(db: Session, provider: str) -> Optional[ProviderState]:
@@ -107,11 +120,15 @@ class TaskClassificationsRepository:
 
     @staticmethod
     def save(db: Session, classification: TaskClassifications) -> TaskClassifications:
-        """Save task classification"""
-        db.add(classification)
-        db.commit()
-        db.refresh(classification)
-        return classification
+        """Save task classification with transaction rollback on error"""
+        try:
+            db.add(classification)
+            db.commit()
+            db.refresh(classification)
+            return classification
+        except Exception as e:
+            db.rollback()
+            raise DatabaseError(f"Failed to save task classification: {str(e)}", {"exception": str(e)})
 
 
 class ModelSelectionsRepository:
@@ -119,9 +136,13 @@ class ModelSelectionsRepository:
 
     @staticmethod
     def save(db: Session, selection: ModelSelections) -> ModelSelections:
-        """Save model selection"""
-        db.add(selection)
-        db.commit()
-        db.refresh(selection)
-        return selection
+        """Save model selection with transaction rollback on error"""
+        try:
+            db.add(selection)
+            db.commit()
+            db.refresh(selection)
+            return selection
+        except Exception as e:
+            db.rollback()
+            raise DatabaseError(f"Failed to save model selection: {str(e)}", {"exception": str(e)})
 

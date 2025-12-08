@@ -11,7 +11,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 ### Prerequisites
 
 - Python 3.11 or higher
-- Poetry (recommended) or pip
+- pip (Python package manager)
 - Git
 
 ### Development Setup
@@ -24,14 +24,21 @@ By participating in this project, you agree to maintain a respectful and inclusi
    cd lumni
    ```
 
-3. **Install dependencies**:
+3. **Create virtual environment**:
    ```bash
-   poetry install --with dev
+   python3 -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
    ```
 
-4. **Set up pre-commit hooks** (optional but recommended):
+4. **Install package with dev dependencies**:
    ```bash
-   poetry run pre-commit install
+   pip install -e ".[dev]"
+   # Or: pip install -r requirements-dev.txt
+   ```
+
+5. **Set up pre-commit hooks** (optional but recommended):
+   ```bash
+   pre-commit install
    ```
 
 5. **Create a branch** for your changes:
@@ -50,16 +57,16 @@ By participating in this project, you agree to maintain a respectful and inclusi
 3. **Write or update tests** for your changes
 4. **Run tests locally**:
    ```bash
-   poetry run pytest
+   pytest
    ```
 5. **Run linting**:
    ```bash
-   poetry run ruff check app/ tests/
-   poetry run black --check app/ tests/
+   ruff check app/ tests/
+   black --check app/ tests/
    ```
 6. **Run type checking**:
    ```bash
-   poetry run mypy app/
+   mypy app/
    ```
 
 ### Coding Standards
@@ -128,16 +135,16 @@ When creating a PR, please fill out the template completely:
 
 ```bash
 # Run all tests
-poetry run pytest
+pytest
 
 # Run with coverage
-poetry run pytest --cov=app --cov-report=html
+pytest --cov=app --cov-report=html
 
 # Run specific test file
-poetry run pytest tests/test_api/test_chat_endpoint.py
+pytest tests/test_api/test_chat_endpoint.py
 
 # Run with verbose output
-poetry run pytest -v
+pytest -v
 ```
 
 ### Writing Tests
@@ -168,5 +175,5 @@ Contributors will be recognized in:
 - CONTRIBUTORS.md (if created)
 - Project documentation
 
-Thank you for contributing to Lumni!
+Thank you for contributing to Lumni! 🎓
 

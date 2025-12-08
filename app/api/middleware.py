@@ -3,6 +3,7 @@ Authentication Middleware
 Unified API key authentication as FastAPI dependency
 """
 
+import secrets
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
@@ -16,15 +17,16 @@ async def verify_api_key(
     credentials: HTTPAuthorizationCredentials = Security(security),
     config: Optional[GatewayConfig] = None
 ) -> str:
-    """Verify API key from Authorization header"""
+    """Verify API key from Authorization header using constant-time comparison"""
     if not config:
         from app.config import load_config
         config = load_config()
 
     token = credentials.credentials
 
-    # Check against unified API key
-    if token != config.auth.unified_api_key:
+    # Use constant-time comparison to prevent timing attacks
+    expected_key = config.auth.unified_api_key
+    if not secrets.compare_digest(token, expected_key):
         raise HTTPException(
             status_code=401,
             detail={

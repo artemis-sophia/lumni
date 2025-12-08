@@ -29,14 +29,15 @@ cd "lumni"
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install package in editable mode (recommended - includes CLI command)
+pip install -e .
 
 # For development (with tests)
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
+# Or: pip install -r requirements-dev.txt
 
 # Initialize database
-python3 -m alembic upgrade head
+alembic upgrade head
 ```
 
 ### TypeScript Version

@@ -13,6 +13,9 @@ from app.core.retry import retry_with_backoff
 from app.core.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
 from app.utils.exceptions import ProviderError, RateLimitError
 
+# Default timeout for API calls (30 seconds)
+DEFAULT_TIMEOUT = float(os.getenv("LLM_REQUEST_TIMEOUT", "30.0"))
+
 
 class LiteLLMClient:
     """LiteLLM client wrapper"""
@@ -100,8 +103,17 @@ class LiteLLMClient:
                 os.environ["HTTP_PROXY"] = proxy
                 os.environ["HTTPS_PROXY"] = proxy
 
-            # Execute completion
-            response = await litellm.acompletion(**completion_params)
+            # Execute completion with timeout
+            # LiteLLM uses httpx internally, set timeout via litellm settings
+            # Note: LiteLLM timeout is set globally, not per-request
+            # We set it here for this request context
+            original_timeout = getattr(litellm, 'request_timeout', None)
+            try:
+                litellm.request_timeout = DEFAULT_TIMEOUT
+                response = await litellm.acompletion(**completion_params)
+            finally:
+                if original_timeout is not None:
+                    litellm.request_timeout = original_timeout
 
             # Transform response to our schema
             return self._transform_response(response, request.provider or "unknown")

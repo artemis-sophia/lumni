@@ -30,19 +30,41 @@ from app.models.task_classifier import get_detailed_classification
 from app.monitoring.tracker import UsageTracker
 from app.config.pricing import calculate_cost
 from app.utils.logger import Logger
+from app.utils.exceptions import (
+    LumniError,
+    ProviderError,
+    RateLimitError,
+    ValidationError,
+    AuthenticationError,
+    ConfigurationError,
+)
+from fastapi import Request
 
 router = APIRouter()
 logger = Logger("APIRoutes")
 
 
-# Dependency to get config (cached)
+def get_request_id(request: Request) -> str:
+    """Get request ID from request state"""
+    return getattr(request.state, "request_id", "unknown")
+
+
+# Dependency to get config (cached with thread-safe mechanism)
+from functools import lru_cache
+from threading import Lock
+
+_config_lock = Lock()
 _config_cache: Optional[GatewayConfig] = None
 
+@lru_cache(maxsize=1)
+def _load_config_cached() -> GatewayConfig:
+    """Thread-safe config loader with LRU cache"""
+    return load_config()
+
 def get_gateway_config() -> GatewayConfig:
-    global _config_cache
-    if _config_cache is None:
-        _config_cache = load_config()
-    return _config_cache
+    """Get gateway config with thread-safe caching"""
+    # Use lru_cache for thread-safe caching
+    return _load_config_cached()
 
 
 # Dependency to get LiteLLM client
@@ -75,16 +97,41 @@ def get_usage_tracker(config: GatewayConfig = Depends(get_gateway_config)) -> Us
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint (no auth required)"""
+    """Health check endpoint with dependency verification (no auth required)"""
     from datetime import datetime
+    from app.storage.database import check_database_connection
+    from app.config import load_config
+    
+    health_status = "healthy"
+    issues = []
+    
+    # Check database connection
+    if not check_database_connection():
+        health_status = "unhealthy"
+        issues.append("database")
+    
+    # Check cache if configured
+    try:
+        config = load_config()
+        if config.cache.type == "redis" and config.cache.connection_string:
+            # Cache health check would go here
+            # For now, we assume cache is optional
+            # TODO: Implement Redis health check
+            pass
+    except Exception as e:
+        # Config errors are not critical for health check
+        # Log but don't fail health check
+        logger.debug(f"Cache health check skipped: {str(e)}")
+    
     return HealthResponse(
-        status="healthy",
+        status=health_status,
         timestamp=datetime.now().isoformat()
     )
 
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_completion(
+    request: Request,
     chat_request: ChatRequest = Body(..., embed=False),
     api_key: str = Depends(verify_api_key),
     config: GatewayConfig = Depends(get_gateway_config),
@@ -94,7 +141,12 @@ async def chat_completion(
     usage_tracker: UsageTracker = Depends(get_usage_tracker),
     db: Session = Depends(get_db)
 ):
-    """Chat completion endpoint"""
+    """Chat completion endpoint with rate limiting"""
+    request_id = get_request_id(request)
+    
+    # Rate limiting is handled by decorator if slowapi is available
+    # The limiter middleware will automatically apply limits
+    
     try:
         
         # Classify task if auto mode
@@ -107,6 +159,13 @@ async def chat_completion(
         logger.info(f"Selected model: {selection.model} from {selection.provider} - {selection.reason}")
 
         # Execute via LiteLLM with Portkey tracking
+        # Get proxy URL from environment or config
+        # Note: config.litellm.proxy is a dict with enabled/rotationInterval flags
+        # The actual proxy URL should come from environment variables (HTTP_PROXY, HTTPS_PROXY)
+        # or be configured elsewhere. For now, we don't pass proxy to litellm_client
+        # as it will use environment variables automatically if set.
+        proxy = None  # Proxy is handled via environment variables in litellm_client
+        
         async def completion_fn():
             # Create a new request with selected model
             selected_request = ChatRequest(
@@ -149,9 +208,34 @@ async def chat_completion(
 
         return response
 
+    except (ProviderError, RateLimitError, ValidationError) as e:
+        # Known errors - log with context and re-raise as HTTPException
+        logger.error(
+            f"Chat request failed: {e.code} - {e.message}",
+            meta={**e.details, "request_id": request_id}
+        )
+        raise HTTPException(
+            status_code=400 if isinstance(e, (ValidationError, RateLimitError)) else 502,
+            detail={
+                "error": e.message,
+                "code": e.code,
+                "request_id": request_id
+            }
+        )
     except Exception as e:
-        logger.error(f"Chat request failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Unknown errors - log full details but return generic message to client
+        logger.error(
+            f"Unexpected error in chat request: {str(e)}",
+            meta={"exception_type": type(e).__name__, "request_id": request_id}
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "An internal error occurred while processing your request",
+                "code": "INTERNAL_ERROR",
+                "request_id": request_id
+            }
+        )
 
 
 @router.get("/providers/status", response_model=ProvidersStatusResponse)
