@@ -1,8 +1,8 @@
 ---
 date: 2025-12-08T14:03:14-03:00
 researcher: Auto
-git_commit: [TO_BE_FILLED]
-branch: main
+git_commit: 895617ab91e5537119443afd496b960f80190c17
+branch: master
 repository: lumni
 topic: "Rebrand to Lumni and Release Preparation"
 tags: [rebranding, release-preparation, cross-platform, github-distribution]
