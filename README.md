@@ -43,6 +43,14 @@ See [FREE_MODELS_CATALOGUE.md](./docs/FREE_MODELS_CATALOGUE.md) for a complete l
 ./setup.sh
 ```
 
+The setup script will:
+- Install all dependencies
+- Configure providers interactively
+- Install the `lumni` CLI command to your PATH
+- Set up the database
+
+After setup, restart your terminal or run `source ~/.bashrc` (or `source ~/.zshrc`) to use the `lumni` command.
+
 **Windows:**
 ```cmd
 setup.bat
