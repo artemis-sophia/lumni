@@ -38,14 +38,84 @@ if [ ! -d "venv" ] && ! command -v poetry &> /dev/null; then
     echo ""
 fi
 
-# Install dependencies
+# Install dependencies and package
 echo "Installing dependencies..."
 if command -v poetry &> /dev/null; then
     poetry install
     echo "Dependencies installed with Poetry"
+    
+    # Get Poetry's bin directory
+    POETRY_BIN_DIR=$(poetry env info --path 2>/dev/null | head -1)
+    if [ -z "$POETRY_BIN_DIR" ]; then
+        POETRY_BIN_DIR="$HOME/.local/share/pypoetry/venv/bin"
+    else
+        POETRY_BIN_DIR="$POETRY_BIN_DIR/bin"
+    fi
+    
+    # Create local bin directory if it doesn't exist
+    LOCAL_BIN_DIR="$HOME/.local/bin"
+    mkdir -p "$LOCAL_BIN_DIR"
+    
+    # Create lumni wrapper script
+    cat > "$LOCAL_BIN_DIR/lumni" << 'LUMNI_EOF'
+#!/bin/bash
+# Lumni CLI wrapper script
+# This script ensures lumni runs from the correct Poetry environment
+
+# Try to find Poetry environment
+if command -v poetry &> /dev/null; then
+    # Get the project directory (where this script was installed from)
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Try to find project root by looking for pyproject.toml
+    PROJECT_ROOT="$SCRIPT_DIR"
+    while [ ! -f "$PROJECT_ROOT/pyproject.toml" ] && [ "$PROJECT_ROOT" != "/" ]; do
+        PROJECT_ROOT="$(dirname "$PROJECT_ROOT")"
+    done
+    
+    if [ -f "$PROJECT_ROOT/pyproject.toml" ]; then
+        cd "$PROJECT_ROOT" || exit 1
+        exec poetry run lumni "$@"
+    else
+        # Fallback: try to run from current directory
+        exec poetry run lumni "$@"
+    fi
+else
+    echo "ERROR: Poetry not found. Please install Poetry or use 'poetry run lumni'"
+    exit 1
+fi
+LUMNI_EOF
+    
+    chmod +x "$LOCAL_BIN_DIR/lumni"
+    echo "Created lumni CLI wrapper at $LOCAL_BIN_DIR/lumni"
+    
+    # Add to PATH if not already there
+    SHELL_RC=""
+    if [ -n "$ZSH_VERSION" ]; then
+        SHELL_RC="$HOME/.zshrc"
+    elif [ -n "$BASH_VERSION" ]; then
+        SHELL_RC="$HOME/.bashrc"
+    fi
+    
+    if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
+        if ! grep -q "$LOCAL_BIN_DIR" "$SHELL_RC" 2>/dev/null; then
+            echo "" >> "$SHELL_RC"
+            echo "# Lumni CLI - Added by setup script" >> "$SHELL_RC"
+            echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$SHELL_RC"
+            echo "Added $LOCAL_BIN_DIR to PATH in $SHELL_RC"
+            echo "NOTE: Run 'source $SHELL_RC' or restart your terminal to use 'lumni' command"
+        else
+            echo "PATH already includes $LOCAL_BIN_DIR"
+        fi
+    fi
+    
+    # Also add to current session
+    export PATH="$LOCAL_BIN_DIR:$PATH"
+    
 else
     pip install -r requirements.txt
     echo "Dependencies installed with pip"
+    echo "NOTE: For pip installation, use 'python3 -m app.cli.main' instead of 'lumni'"
 fi
 echo ""
 
@@ -408,29 +478,6 @@ for status in "${PROVIDER_STATUS[@]}"; do
     fi
 done
 echo ""
-echo "CLI Installation:"
-if command -v poetry &> /dev/null; then
-    POETRY_ENV=$(poetry env info --path 2>/dev/null || echo "")
-    if [ -n "$POETRY_ENV" ]; then
-        echo "  To use 'lumni' command directly, run:"
-        echo "    ./scripts/add-to-path.sh"
-        echo ""
-        echo "  This will automatically add lumni to your PATH."
-        echo ""
-        echo "  Or manually add to PATH:"
-        echo "    export PATH=\"$POETRY_ENV/bin:\$PATH\""
-        echo ""
-        echo "  For now, you can use: poetry run lumni --help"
-    else
-        echo "  Run: poetry install"
-        echo "  Then use: poetry run lumni --help"
-        echo "  Or run: ./scripts/add-to-path.sh to add to PATH"
-    fi
-else
-    echo "  Activate virtual environment: source venv/bin/activate"
-    echo "  Then use: lumni --help"
-fi
-echo ""
 echo "To start the gateway:"
 if command -v poetry &> /dev/null; then
     echo "  poetry run uvicorn app.main:app --host 0.0.0.0 --port 3000"
@@ -439,5 +486,5 @@ else
     echo "  python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3000"
 fi
 echo ""
-echo "For detailed instructions, see QUICKSTART.md, SETUP.md, or INSTALL.md"
+echo "For detailed instructions, see QUICKSTART.md or SETUP.md"
 echo ""

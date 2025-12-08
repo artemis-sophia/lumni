@@ -25,12 +25,12 @@ A plug-and-play API gateway system optimized for teaching AI engineering, design
 - **OpenRouter**: Free tier models (requires account credits)
 
 ### Student Credit Programs
-- Together AI ($200-600 research credits)
-- Fireworks AI ($500 student credits)
-- Azure OpenAI ($100/year via GitHub Student Pack)
-- AWS Bedrock (via AWS Educate)
-- Vertex AI (GCP free trial)
-- Mistral AI (student plan)
+- **Together AI**: $200-600 research credits for students
+- **Fireworks AI**: $500 student credits available
+- **Azure OpenAI**: $100/year via GitHub Student Pack
+- **AWS Bedrock**: Access via AWS Educate program
+- **Vertex AI**: GCP free trial for students
+- **Mistral AI**: Student plan with special pricing
 
 See [FREE_MODELS_CATALOGUE.md](./docs/FREE_MODELS_CATALOGUE.md) for a complete list of free models.
 
@@ -80,6 +80,12 @@ setup.bat
    # Or: python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3000
    ```
 
+5. **Use the CLI** (after restarting terminal or running `source ~/.bashrc` / `source ~/.zshrc`)
+   ```bash
+   lumni --help
+   lumni settings menu
+   ```
+
 For detailed instructions, see [QUICKSTART.md](./QUICKSTART.md).
 
 ## Usage
@@ -114,11 +120,9 @@ lumni monitor watch
 # Interactive settings
 lumni settings menu
 
-# Show help
-lumni --help
+# Generate unified API key
+lumni settings unified-key
 ```
-
-**Note:** If `lumni` command is not found, you can use `poetry run lumni` or see [INSTALL.md](./INSTALL.md) for PATH setup instructions.
 
 See [docs/cli_demonstration.ipynb](./docs/cli_demonstration.ipynb) for a complete CLI guide.
 
@@ -188,20 +192,6 @@ poetry run pytest
 poetry run black app/
 poetry run ruff check app/
 ```
-
-## CLI Installation
-
-After running `poetry install`, add the CLI to your PATH:
-
-```bash
-# Automatic (recommended)
-./scripts/add-to-path.sh
-
-# Or manually
-export PATH="$(poetry env info --path)/bin:$PATH"
-```
-
-Then use `lumni` directly instead of `poetry run lumni`. See [INSTALL.md](./INSTALL.md) for detailed instructions.
 
 ## Contributing
 
