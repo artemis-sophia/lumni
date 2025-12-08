@@ -440,7 +440,7 @@ All errors include suggestions for resolution.
     with open(output_path, 'w', encoding='utf-8') as f:
         nbf.write(nb, f)
     
-    print(f"✅ Created demonstration notebook: {output_path}")
+    print(f"Created demonstration notebook: {output_path}")
     print(f"   Total cells: {len(nb.cells)}")
     print(f"   - Markdown cells: {sum(1 for c in nb.cells if c.cell_type == 'markdown')}")
     print(f"   - Code cells: {sum(1 for c in nb.cells if c.cell_type == 'code')}")
