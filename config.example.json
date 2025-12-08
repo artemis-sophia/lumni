@@ -1,0 +1,104 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0"
+  },
+  "auth": {
+    "unifiedApiKey": "your-unified-api-key-here",
+    "keyRotationEnabled": false
+  },
+  "providers": {
+    "github-copilot": {
+      "enabled": true,
+      "apiKey": "${GITHUB_TOKEN}",
+      "priority": 1,
+      "rateLimit": {
+        "requestsPerMinute": 60,
+        "requestsPerDay": 5000
+      }
+    },
+    "deepseek": {
+      "enabled": true,
+      "apiKey": "${DEEPSEEK_API_KEY}",
+      "baseUrl": "https://api.deepseek.com",
+      "priority": 2,
+      "rateLimit": {
+        "requestsPerMinute": 30,
+        "requestsPerDay": 1000
+      }
+    },
+    "groq": {
+      "enabled": true,
+      "apiKey": "${GROQ_API_KEY}",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "priority": 3,
+      "rateLimit": {
+        "requestsPerMinute": 600,
+        "requestsPerDay": 10000
+      }
+    }
+  },
+  "fallback": {
+    "enabled": true,
+    "strategy": "priority",
+    "healthCheckInterval": 30000,
+    "retryAttempts": 3,
+    "retryDelay": 1000
+  },
+  "monitoring": {
+    "enabled": true,
+    "trackUsage": true,
+    "alertThreshold": 0.8,
+    "persistMetrics": true
+  },
+  "storage": {
+    "type": "sqlite",
+    "path": "./data/gateway.db"
+  },
+  "litellm": {
+    "configPath": "./litellm_config.yaml",
+    "proxy": {
+      "enabled": false,
+      "rotationInterval": 3600000
+    }
+  },
+  "portkey": {
+    "enabled": false,
+    "apiKey": "${PORTKEY_API_KEY}",
+    "environment": "development",
+    "virtualKey": "${PORTKEY_VIRTUAL_KEY}",
+    "config": {
+      "cache": {
+        "mode": "semantic",
+        "ttl": 3600
+      },
+      "retry": {
+        "attempts": 3,
+        "onStatusCodes": [429, 500, 502, 503]
+      }
+    }
+  },
+  "academic": {
+    "taskClassification": {
+      "enabled": true,
+      "autoDetect": true
+    },
+    "benchmarkSelection": {
+      "enabled": true,
+      "weights": {
+        "benchmarkRanking": 0.3,
+        "benchmarkScore": 0.2,
+        "rateLimitAvailability": 0.2,
+        "providerPriority": 0.1,
+        "recentUsage": 0.1,
+        "costEfficiency": 0.1
+      }
+    }
+  },
+  "cache": {
+    "type": "memory",
+    "connectionString": "${REDIS_URL}",
+    "ttl": 3600
+  }
+}
+

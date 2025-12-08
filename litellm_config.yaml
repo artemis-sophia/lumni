@@ -1,0 +1,192 @@
+# LiteLLM Configuration for Lumni
+# This file configures all AI providers and their models
+
+model_list:
+  # OpenAI Models
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+  
+  - model_name: gpt-4-turbo
+    litellm_params:
+      model: openai/gpt-4-turbo
+      api_key: os.environ/OPENAI_API_KEY
+  
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_key: os.environ/OPENAI_API_KEY
+
+  # Groq Models (Free Tier - Rate-Limited, No Credits Required)
+  # All Groq models are free tier with rate limits - no credits needed
+  - model_name: groq-llama-3.1-8b-instant
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: os.environ/GROQ_API_KEY
+  
+  - model_name: groq-mixtral-8x7b
+    litellm_params:
+      model: groq/mixtral-8x7b-32768
+      api_key: os.environ/GROQ_API_KEY
+  
+  - model_name: groq-gemma-7b-it
+    litellm_params:
+      model: groq/gemma-7b-it
+      api_key: os.environ/GROQ_API_KEY
+  
+  - model_name: groq-llama-3.3-70b-versatile
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: os.environ/GROQ_API_KEY
+  
+  - model_name: groq-llama-3.1-70b-versatile
+    litellm_params:
+      model: groq/llama-3.1-70b-versatile
+      api_key: os.environ/GROQ_API_KEY
+  
+  - model_name: groq-llama-3.1-405b-reasoning
+    litellm_params:
+      model: groq/llama-3.1-405b-reasoning
+      api_key: os.environ/GROQ_API_KEY
+
+  # DeepSeek Models (Rate-Limited Free Tier - No Credits Required)
+  # Free tier available with rate limits - no credits needed
+  - model_name: deepseek-chat
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+  
+  - model_name: deepseek-coder
+    litellm_params:
+      model: deepseek/deepseek-coder
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  # Mistral AI Models
+  - model_name: mistral-large
+    litellm_params:
+      model: mistral/mistral-large-latest
+      api_key: os.environ/MISTRAL_API_KEY
+  
+  - model_name: codestral
+    litellm_params:
+      model: mistral/codestral-latest
+      api_key: os.environ/MISTRAL_API_KEY
+
+  # Google Gemini Models (Free Tier - No Credits Required)
+  # All Gemini models are free with rate limits - no credits needed
+  - model_name: gemini-1.5-flash
+    litellm_params:
+      model: gemini/gemini-1.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+  
+  - model_name: gemini-1.5-pro
+    litellm_params:
+      model: gemini/gemini-1.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+  
+  - model_name: gemini-1.5-pro-latest
+    litellm_params:
+      model: gemini/gemini-1.5-pro-latest
+      api_key: os.environ/GEMINI_API_KEY
+  
+  - model_name: gemini-2.0-flash-exp
+    litellm_params:
+      model: gemini/gemini-2.0-flash-exp
+      api_key: os.environ/GEMINI_API_KEY
+
+  # GitHub Models API (Free for GitHub Pro/Education - No Credits Required)
+  # Requires GitHub Pro account or GitHub Education Pack
+  # All models are free - no credits needed with Pro account
+  - model_name: github-gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/v1
+  
+  - model_name: github-gpt-4-turbo
+    litellm_params:
+      model: openai/gpt-4-turbo
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/v1
+  
+  - model_name: github-gpt-3.5-turbo
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/v1
+  
+  - model_name: github-claude-3-opus
+    litellm_params:
+      model: anthropic/claude-3-opus
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/v1
+  
+  - model_name: github-claude-3-sonnet
+    litellm_params:
+      model: anthropic/claude-3-sonnet
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/v1
+  
+  - model_name: github-claude-3-haiku
+    litellm_params:
+      model: anthropic/claude-3-haiku
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/v1
+
+  # OpenRouter Models (Free Tier Only - Note: OpenRouter requires account credits even for free models)
+  # Free models available: google/gemini-flash-1.5, microsoft/phi-3-mini-4k-instruct, meta-llama/llama-3.1-8b-instruct
+  - model_name: openrouter-llama-3.1-8b
+    litellm_params:
+      model: openrouter/meta-llama/llama-3.1-8b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+  
+  - model_name: openrouter-phi-3-mini
+    litellm_params:
+      model: openrouter/microsoft/phi-3-mini-4k-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+
+# Router Settings
+router_settings:
+  num_retries: 3
+  timeout: 60
+  fallbacks:
+    - gpt-4o
+    - groq-llama-3.1-8b-instant
+    - deepseek-chat
+    - gemini-1.5-flash
+    - github-gpt-3.5-turbo
+    - openrouter-llama-3.1-8b
+    - openrouter-phi-3-mini
+
+# LiteLLM General Settings
+litellm_settings:
+  # Success callback for Portkey tracking
+  success_callback: ["portkey"]
+  # Failure callback for Portkey tracking
+  failure_callback: ["portkey"]
+  # Enable caching
+  cache: true
+  # Cache type (can be redis, s3, etc.)
+  cache_type: "redis"
+  # Set default model
+  default_model: "gpt-3.5-turbo"
+  # Set default max tokens
+  default_max_tokens: 4096
+  # Enable streaming
+  stream: false
+  # Set timeout
+  timeout: 60
+
+# Rate Limiting (per provider)
+rate_limit_settings:
+  # Global rate limit
+  global_rate_limit: "1000/minute"
+  # Per-model rate limits
+  model_rate_limits:
+    "gpt-4o": "50/minute"
+    "gpt-4-turbo": "100/minute"
+    "gpt-3.5-turbo": "500/minute"
+    "groq-llama-3.1-8b-instant": "600/minute"
+    "deepseek-chat": "100/minute"
+
