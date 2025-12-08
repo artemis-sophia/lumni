@@ -469,6 +469,15 @@ echo ""
 echo "To start the gateway:"
 if command -v poetry &> /dev/null; then
     echo "  poetry run uvicorn app.main:app --host 0.0.0.0 --port 3000"
+    echo ""
+    if [ -f "$HOME/.local/bin/lumni" ]; then
+        echo "To use the CLI:"
+        echo "  (After restarting terminal or running 'source ~/.bashrc' / 'source ~/.zshrc'):"
+        echo "  lumni --help"
+        echo "  lumni settings menu"
+        echo "  lumni providers list"
+        echo ""
+    fi
 else
     echo "  source venv/bin/activate"
     echo "  python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3000"
