@@ -5,33 +5,33 @@
 
 set -e
 
-echo "🎓 Lumni API Gateway - Initialization"
+echo "Lumni API Gateway - Initialization"
 echo "======================================"
 echo ""
 
 # Check if config.json exists
 if [ ! -f "config.json" ]; then
-    echo "📝 Creating config.json from example..."
+    echo "Creating config.json from example..."
     cp config.example.json config.json
-    echo "✅ Created config.json"
+    echo "Created config.json"
     echo ""
-    echo "⚠️  Please edit config.json and add your API keys!"
+    echo "WARNING: Please edit config.json and add your API keys!"
     echo ""
 else
-    echo "✅ config.json already exists"
+    echo "config.json already exists"
 fi
 
 # Check if .env exists
 if [ ! -f ".env" ]; then
     if [ -f ".env.example" ]; then
-        echo "📝 Creating .env from example..."
+        echo "Creating .env from example..."
         cp .env.example .env
-        echo "✅ Created .env"
+        echo "Created .env"
         echo ""
-        echo "⚠️  Please edit .env and add your API keys!"
+        echo "WARNING: Please edit .env and add your API keys!"
         echo ""
     else
-        echo "⚠️  .env.example not found, creating basic .env file..."
+        echo "WARNING: .env.example not found, creating basic .env file..."
         cat > .env << 'ENVEOF'
 # Unified API Key
 UNIFIED_API_KEY=your-unified-api-key-here
@@ -44,59 +44,59 @@ DEEPSEEK_API_KEY=your_deepseek_key_here
 LOG_LEVEL=info
 CONFIG_PATH=./config.json
 ENVEOF
-        echo "✅ Created basic .env file"
-        echo "⚠️  Please edit .env and add your API keys!"
+        echo "Created basic .env file"
+        echo "WARNING: Please edit .env and add your API keys!"
         echo ""
     fi
 else
-    echo "✅ .env already exists"
+    echo ".env already exists"
 fi
 
 # Create necessary directories
-echo "📁 Creating directories..."
+echo "Creating directories..."
 mkdir -p logs
 mkdir -p data
-echo "✅ Directories created"
+echo "Directories created"
 
 # Check Python version
 echo ""
-echo "🔍 Checking Python version..."
+echo "Checking Python version..."
 if ! command -v python3 &> /dev/null; then
-    echo "❌ Python 3.11+ required. Please install Python."
+    echo "ERROR: Python 3.11+ required. Please install Python."
     exit 1
 fi
 PYTHON_VERSION=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
-echo "✅ Python version: $(python3 --version)"
+echo "Python version: $(python3 --version)"
 
 # Check if Poetry is installed
 if ! command -v poetry &> /dev/null; then
     echo ""
-    echo "⚠️  Poetry not found. Installing dependencies with pip..."
+    echo "WARNING: Poetry not found. Installing dependencies with pip..."
     if [ -f "requirements.txt" ]; then
         pip install -r requirements.txt
     else
-        echo "❌ requirements.txt not found"
+        echo "ERROR: requirements.txt not found"
         exit 1
     fi
 else
     echo ""
-    echo "📦 Installing dependencies with Poetry..."
+    echo "Installing dependencies with Poetry..."
     poetry install
-    echo "✅ Dependencies installed"
+    echo "Dependencies installed"
 fi
 
 # Initialize database
 echo ""
-echo "🗄️  Initializing database..."
+echo "Initializing database..."
 if command -v poetry &> /dev/null; then
     poetry run alembic upgrade head
 else
     python3 -m alembic upgrade head
 fi
-echo "✅ Database initialized"
+echo "Database initialized"
 
 echo ""
-echo "✨ Setup complete!"
+echo "Setup complete!"
 echo ""
 echo "Next steps:"
 echo "1. Edit config.json and add your API keys"
