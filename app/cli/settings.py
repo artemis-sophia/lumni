@@ -73,7 +73,7 @@ def show_settings():
         # Provider settings summary
         provider_table = create_table("Provider Settings", ["Provider", "Enabled", "Priority", "Base URL"])
         for provider_name, provider_config in sorted(config.providers.items()):
-            enabled_markup = f"[green]✓[/green]" if provider_config.enabled else f"[red]✗[/red]"
+            enabled_markup = f"[green]YES[/green]" if provider_config.enabled else f"[red]NO[/red]"
             provider_table.add_row(
                 provider_name,
                 enabled_markup,
