@@ -168,5 +168,5 @@ Contributors will be recognized in:
 - CONTRIBUTORS.md (if created)
 - Project documentation
 
-Thank you for contributing to Lumni! 🎓
+Thank you for contributing to Lumni!
 

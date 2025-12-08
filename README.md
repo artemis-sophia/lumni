@@ -99,19 +99,26 @@ curl -X POST http://localhost:3000/api/v1/chat \
 
 ### CLI Management
 
+After installation, the `lumni` command is available in your PATH:
+
 ```bash
 # Show usage statistics
-poetry run lumni usage
+lumni usage
 
 # List providers
-poetry run lumni providers list
+lumni providers list
 
 # Monitor in real-time
-poetry run lumni monitor watch
+lumni monitor watch
 
 # Interactive settings
-poetry run lumni settings menu
+lumni settings menu
+
+# Show help
+lumni --help
 ```
+
+**Note:** If `lumni` command is not found, you can use `poetry run lumni` or see [INSTALL.md](./INSTALL.md) for PATH setup instructions.
 
 See [docs/cli_demonstration.ipynb](./docs/cli_demonstration.ipynb) for a complete CLI guide.
 
@@ -181,6 +188,20 @@ poetry run pytest
 poetry run black app/
 poetry run ruff check app/
 ```
+
+## CLI Installation
+
+After running `poetry install`, add the CLI to your PATH:
+
+```bash
+# Automatic (recommended)
+./scripts/add-to-path.sh
+
+# Or manually
+export PATH="$(poetry env info --path)/bin:$PATH"
+```
+
+Then use `lumni` directly instead of `poetry run lumni`. See [INSTALL.md](./INSTALL.md) for detailed instructions.
 
 ## Contributing
 

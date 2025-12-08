@@ -161,7 +161,7 @@ Your gateway is now running. The system will automatically:
 - Add more providers for better redundancy
 - Set up monitoring alerts
 - Read `SETUP.md` for advanced configuration
-- Use the CLI: `poetry run lumni --help` (or `python -m app.cli.main --help`)
+- Use the CLI: `lumni --help` (see [INSTALL.md](./INSTALL.md) for PATH setup)
 
 ## Troubleshooting
 

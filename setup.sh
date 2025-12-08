@@ -408,6 +408,29 @@ for status in "${PROVIDER_STATUS[@]}"; do
     fi
 done
 echo ""
+echo "CLI Installation:"
+if command -v poetry &> /dev/null; then
+    POETRY_ENV=$(poetry env info --path 2>/dev/null || echo "")
+    if [ -n "$POETRY_ENV" ]; then
+        echo "  To use 'lumni' command directly, run:"
+        echo "    ./scripts/add-to-path.sh"
+        echo ""
+        echo "  This will automatically add lumni to your PATH."
+        echo ""
+        echo "  Or manually add to PATH:"
+        echo "    export PATH=\"$POETRY_ENV/bin:\$PATH\""
+        echo ""
+        echo "  For now, you can use: poetry run lumni --help"
+    else
+        echo "  Run: poetry install"
+        echo "  Then use: poetry run lumni --help"
+        echo "  Or run: ./scripts/add-to-path.sh to add to PATH"
+    fi
+else
+    echo "  Activate virtual environment: source venv/bin/activate"
+    echo "  Then use: lumni --help"
+fi
+echo ""
 echo "To start the gateway:"
 if command -v poetry &> /dev/null; then
     echo "  poetry run uvicorn app.main:app --host 0.0.0.0 --port 3000"
@@ -416,5 +439,5 @@ else
     echo "  python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3000"
 fi
 echo ""
-echo "For detailed instructions, see QUICKSTART.md or SETUP.md"
+echo "For detailed instructions, see QUICKSTART.md, SETUP.md, or INSTALL.md"
 echo ""
