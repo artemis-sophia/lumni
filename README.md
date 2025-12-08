@@ -184,7 +184,11 @@ poetry run ruff check app/
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to contribute.
+
+- Read our [Code of Conduct](./CODE_OF_CONDUCT.md)
+- Check out [existing issues](https://github.com/artemis-sophia/lumni/issues)
+- Follow our [development workflow](./CONTRIBUTING.md#development-workflow)
 
 ## License
 
