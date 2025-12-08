@@ -15,12 +15,31 @@ from app.storage.models import (
     ModelSelections
 )
 from app.utils.exceptions import DatabaseError
+from app.utils.error_context import create_error_context
+from sqlalchemy.exc import OperationalError, DisconnectionError
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    RetryError
+)
+from functools import wraps
+
+# Retry decorator for database operations
+retry_db_operation = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    retry=retry_if_exception_type((OperationalError, DisconnectionError)),
+    reraise=True
+)
 
 
 class UsageMetricsRepository:
     """Repository for usage metrics"""
 
     @staticmethod
+    @retry_db_operation
     def save(db: Session, metric: UsageMetrics) -> UsageMetrics:
         """Save usage metric with transaction rollback on error"""
         try:
@@ -30,7 +49,16 @@ class UsageMetricsRepository:
             return metric
         except Exception as e:
             db.rollback()
-            raise DatabaseError(f"Failed to save usage metric: {str(e)}", {"exception": str(e)})
+            error_context = create_error_context(
+                error_type="DATABASE_ERROR",
+                message=f"Failed to save usage metric: {str(e)}",
+                original_exception=e,
+                operation="save_usage_metric"
+            )
+            raise DatabaseError(
+                f"Failed to save usage metric: {str(e)}",
+                error_context.to_dict()
+            ) from e
 
     @staticmethod
     def get_by_provider(
@@ -67,6 +95,7 @@ class ModelRateLimitsRepository:
     """Repository for model rate limits"""
 
     @staticmethod
+    @retry_db_operation
     def save(db: Session, rate_limit: ModelRateLimits) -> ModelRateLimits:
         """Save model rate limit with transaction rollback on error"""
         try:
@@ -76,7 +105,16 @@ class ModelRateLimitsRepository:
             return rate_limit
         except Exception as e:
             db.rollback()
-            raise DatabaseError(f"Failed to save model rate limit: {str(e)}", {"exception": str(e)})
+            error_context = create_error_context(
+                error_type="DATABASE_ERROR",
+                message=f"Failed to save model rate limit: {str(e)}",
+                original_exception=e,
+                operation="save_model_rate_limit"
+            )
+            raise DatabaseError(
+                f"Failed to save model rate limit: {str(e)}",
+                error_context.to_dict()
+            ) from e
 
     @staticmethod
     def get(db: Session, provider: str, model: str) -> Optional[ModelRateLimits]:
@@ -98,6 +136,7 @@ class ProviderStateRepository:
     """Repository for provider state"""
 
     @staticmethod
+    @retry_db_operation
     def save(db: Session, state: ProviderState) -> ProviderState:
         """Save provider state with transaction rollback on error"""
         try:
@@ -107,7 +146,16 @@ class ProviderStateRepository:
             return state
         except Exception as e:
             db.rollback()
-            raise DatabaseError(f"Failed to save provider state: {str(e)}", {"exception": str(e)})
+            error_context = create_error_context(
+                error_type="DATABASE_ERROR",
+                message=f"Failed to save provider state: {str(e)}",
+                original_exception=e,
+                operation="save_provider_state"
+            )
+            raise DatabaseError(
+                f"Failed to save provider state: {str(e)}",
+                error_context.to_dict()
+            ) from e
 
     @staticmethod
     def get(db: Session, provider: str) -> Optional[ProviderState]:
@@ -119,6 +167,7 @@ class TaskClassificationsRepository:
     """Repository for task classifications"""
 
     @staticmethod
+    @retry_db_operation
     def save(db: Session, classification: TaskClassifications) -> TaskClassifications:
         """Save task classification with transaction rollback on error"""
         try:
@@ -128,13 +177,23 @@ class TaskClassificationsRepository:
             return classification
         except Exception as e:
             db.rollback()
-            raise DatabaseError(f"Failed to save task classification: {str(e)}", {"exception": str(e)})
+            error_context = create_error_context(
+                error_type="DATABASE_ERROR",
+                message=f"Failed to save task classification: {str(e)}",
+                original_exception=e,
+                operation="save_task_classification"
+            )
+            raise DatabaseError(
+                f"Failed to save task classification: {str(e)}",
+                error_context.to_dict()
+            ) from e
 
 
 class ModelSelectionsRepository:
     """Repository for model selections"""
 
     @staticmethod
+    @retry_db_operation
     def save(db: Session, selection: ModelSelections) -> ModelSelections:
         """Save model selection with transaction rollback on error"""
         try:
@@ -144,5 +203,14 @@ class ModelSelectionsRepository:
             return selection
         except Exception as e:
             db.rollback()
-            raise DatabaseError(f"Failed to save model selection: {str(e)}", {"exception": str(e)})
+            error_context = create_error_context(
+                error_type="DATABASE_ERROR",
+                message=f"Failed to save model selection: {str(e)}",
+                original_exception=e,
+                operation="save_model_selection"
+            )
+            raise DatabaseError(
+                f"Failed to save model selection: {str(e)}",
+                error_context.to_dict()
+            ) from e
 

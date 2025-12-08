@@ -1,23 +1,67 @@
 """
 Usage Tracker
-Tracks usage metrics and persists to database
+Uses OpenTelemetry for metrics and observability while maintaining API compatibility
 """
 
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from sqlalchemy.orm import Session
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import Resource
 from app.storage.models import UsageMetrics
 from app.storage.database import get_db
 from app.utils.logger import Logger
 
+logger = Logger("UsageTracker")
+
+# Initialize OpenTelemetry metrics
+_resource = Resource.create({"service.name": "lumni-gateway"})
+# Use in-memory metrics (Prometheus exporter will be handled separately)
+_meter_provider = MeterProvider(resource=_resource)
+metrics.set_meter_provider(_meter_provider)
+
+_meter = metrics.get_meter(__name__)
+
+# Create metrics
+_request_counter = _meter.create_counter(
+    "lumni_requests_total",
+    description="Total number of requests",
+    unit="1"
+)
+
+_token_counter = _meter.create_counter(
+    "lumni_tokens_total",
+    description="Total number of tokens processed",
+    unit="1"
+)
+
+_error_counter = _meter.create_counter(
+    "lumni_errors_total",
+    description="Total number of errors",
+    unit="1"
+)
+
+_rate_limit_counter = _meter.create_counter(
+    "lumni_rate_limit_hits_total",
+    description="Total number of rate limit hits",
+    unit="1"
+)
+
+_request_duration = _meter.create_histogram(
+    "lumni_request_duration_seconds",
+    description="Request duration in seconds",
+    unit="s"
+)
+
 
 class UsageTracker:
-    """Usage tracking and statistics"""
+    """Usage tracking and statistics using OpenTelemetry"""
 
     def __init__(self, alert_threshold: float = 0.8):
         self.alert_threshold = alert_threshold
         self.logger = Logger("UsageTracker")
-        self.metrics: Dict[str, list] = {}
 
     async def record_request(
         self,
@@ -28,7 +72,24 @@ class UsageTracker:
         model: Optional[str] = None,
         db: Optional[Session] = None
     ):
-        """Record a request"""
+        """Record a request using OpenTelemetry metrics"""
+        # Record OpenTelemetry metrics
+        labels = {
+            "provider": provider,
+            "model": model or "unknown",
+            "success": str(success).lower()
+        }
+        
+        _request_counter.add(1, labels)
+        _token_counter.add(tokens, labels)
+        
+        if not success:
+            _error_counter.add(1, labels)
+        
+        if rate_limit_hit:
+            _rate_limit_counter.add(1, labels)
+
+        # Persist to database for historical analysis
         metric = UsageMetrics(
             provider=provider,
             model=model,
@@ -39,37 +100,56 @@ class UsageTracker:
             rate_limit_hits=1 if rate_limit_hit else 0
         )
 
-        # Store in memory
-        key = f"{provider}:{model}" if model else provider
-        if key not in self.metrics:
-            self.metrics[key] = []
-        self.metrics[key].append(metric)
-
         # Persist to database
         if db:
-            db.add(metric)
-            db.commit()
-        else:
-            # Use dependency injection if available
-            db_gen = get_db()
-            db = next(db_gen)
             try:
                 db.add(metric)
                 db.commit()
-            finally:
-                db.close()
+            except Exception as e:
+                db.rollback()
+                self.logger.error(f"Failed to persist usage metric: {str(e)}")
+                raise
+        else:
+            # Use dependency injection if available - run in executor for async safety
+            import asyncio
+            from app.storage.transaction import get_db_transaction
+            
+            def sync_db_operation():
+                with get_db_transaction() as transaction_db:
+                    transaction_db.add(metric)
+            
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, sync_db_operation)
 
-        # Check for alerts
-        await self.check_alerts(provider)
+        # Check for alerts (use same db session if available)
+        await self.check_alerts(provider, db=db if db else None)
 
-    async def check_alerts(self, provider: str):
+    async def check_alerts(self, provider: str, db: Optional[Session] = None):
         """Check for rate limit alerts"""
-        provider_metrics = self.metrics.get(provider, [])
         one_hour_ago = datetime.now() - timedelta(hours=1)
-        recent_metrics = [
-            m for m in provider_metrics
-            if isinstance(m.timestamp, datetime) and m.timestamp >= one_hour_ago
-        ]
+        
+        if db:
+            recent_metrics = db.query(UsageMetrics).filter(
+                UsageMetrics.provider == provider,
+                UsageMetrics.timestamp >= one_hour_ago
+            ).all()
+        else:
+            # Query database directly if no session provided - run in executor for async safety
+            import asyncio
+            from app.storage.database import SessionLocal
+            
+            def sync_query():
+                db_session = SessionLocal()
+                try:
+                    return db_session.query(UsageMetrics).filter(
+                        UsageMetrics.provider == provider,
+                        UsageMetrics.timestamp >= one_hour_ago
+                    ).all()
+                finally:
+                    db_session.close()
+            
+            loop = asyncio.get_event_loop()
+            recent_metrics = await loop.run_in_executor(None, sync_query)
 
         total_requests = sum(m.requests for m in recent_metrics)
         rate_limit_hits = sum(m.rate_limit_hits for m in recent_metrics)
@@ -96,15 +176,22 @@ class UsageTracker:
                 UsageMetrics.timestamp >= window_start
             ).all()
         else:
-            # Use memory cache
-            all_metrics = []
-            for key, metrics in self.metrics.items():
-                if key == provider or key.startswith(f"{provider}:"):
-                    all_metrics.extend(metrics)
-            recent_metrics = [
-                m for m in all_metrics
-                if isinstance(m.timestamp, datetime) and m.timestamp >= window_start
-            ]
+            # Query database directly if no session provided - run in executor for async safety
+            import asyncio
+            from app.storage.database import SessionLocal
+            
+            def sync_query():
+                db_session = SessionLocal()
+                try:
+                    return db_session.query(UsageMetrics).filter(
+                        UsageMetrics.provider == provider,
+                        UsageMetrics.timestamp >= window_start
+                    ).all()
+                finally:
+                    db_session.close()
+            
+            loop = asyncio.get_event_loop()
+            recent_metrics = await loop.run_in_executor(None, sync_query)
 
         return {
             'requests': sum(m.requests for m in recent_metrics),
@@ -131,12 +218,23 @@ class UsageTracker:
                 UsageMetrics.timestamp >= window_start
             ).all()
         else:
-            key = f"{provider}:{model}"
-            model_metrics = self.metrics.get(key, [])
-            recent_metrics = [
-                m for m in model_metrics
-                if isinstance(m.timestamp, datetime) and m.timestamp >= window_start
-            ]
+            # Query database directly if no session provided - run in executor for async safety
+            import asyncio
+            from app.storage.database import SessionLocal
+            
+            def sync_query():
+                db_session = SessionLocal()
+                try:
+                    return db_session.query(UsageMetrics).filter(
+                        UsageMetrics.provider == provider,
+                        UsageMetrics.model == model,
+                        UsageMetrics.timestamp >= window_start
+                    ).all()
+                finally:
+                    db_session.close()
+            
+            loop = asyncio.get_event_loop()
+            recent_metrics = await loop.run_in_executor(None, sync_query)
 
         return {
             'requests': sum(m.requests for m in recent_metrics),
@@ -152,17 +250,28 @@ class UsageTracker:
         db: Optional[Session] = None
     ) -> Dict[str, Dict]:
         """Get statistics for all providers"""
-        # Get unique providers
-        providers = set()
-        for key in self.metrics.keys():
-            if ':' in key:
-                providers.add(key.split(':')[0])
-            else:
-                providers.add(key)
+        # Get unique providers from database
+        if db:
+            providers = db.query(UsageMetrics.provider).distinct().all()
+            providers = [p[0] for p in providers]
+        else:
+            # Query database directly if no session provided - run in executor for async safety
+            import asyncio
+            from app.storage.database import SessionLocal
+            
+            def sync_query():
+                db_session = SessionLocal()
+                try:
+                    providers = db_session.query(UsageMetrics.provider).distinct().all()
+                    return [p[0] for p in providers]
+                finally:
+                    db_session.close()
+            
+            loop = asyncio.get_event_loop()
+            providers = await loop.run_in_executor(None, sync_query)
 
         stats = {}
         for provider in providers:
             stats[provider] = self.get_provider_stats(provider, time_window, db)
 
         return stats
-

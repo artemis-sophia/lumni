@@ -16,13 +16,16 @@ from app.api.v1.schemas import (
     ProviderModelsResponse,
     ModelStatusResponse,
     HealthResponse,
+    ComponentHealth,
     ProviderStatus,
     RateLimitRemaining,
     ModelRateLimit,
 )
 from app.api.middleware import verify_api_key
-from app.config import GatewayConfig, load_config
+from app.config import GatewayConfig
+from app.config.manager import get_config_manager
 from app.storage.database import get_db
+from app.storage.models import ProviderState
 from app.core.litellm_client import LiteLLMClient
 from app.core.portkey_client import PortkeyClient
 from app.models.benchmark_selector import BenchmarkSelector
@@ -38,6 +41,7 @@ from app.utils.exceptions import (
     AuthenticationError,
     ConfigurationError,
 )
+from app.utils.error_context import ErrorContext, create_error_context
 from fastapi import Request
 
 router = APIRouter()
@@ -49,22 +53,12 @@ def get_request_id(request: Request) -> str:
     return getattr(request.state, "request_id", "unknown")
 
 
-# Dependency to get config (cached with thread-safe mechanism)
-from functools import lru_cache
-from threading import Lock
-
-_config_lock = Lock()
-_config_cache: Optional[GatewayConfig] = None
-
-@lru_cache(maxsize=1)
-def _load_config_cached() -> GatewayConfig:
-    """Thread-safe config loader with LRU cache"""
-    return load_config()
+# Dependency to get config (thread-safe singleton)
+from app.config.manager import get_config_manager
 
 def get_gateway_config() -> GatewayConfig:
     """Get gateway config with thread-safe caching"""
-    # Use lru_cache for thread-safe caching
-    return _load_config_cached()
+    return get_config_manager().load()
 
 
 # Dependency to get LiteLLM client
@@ -95,37 +89,134 @@ def get_usage_tracker(config: GatewayConfig = Depends(get_gateway_config)) -> Us
     return UsageTracker(config.monitoring.alert_threshold)
 
 
+# Dependency to get provider health checker
+def get_provider_health_checker(config: GatewayConfig = Depends(get_gateway_config)) -> ProviderHealthChecker:
+    return ProviderHealthChecker(health_check_ttl=config.fallback.health_check_interval // 1000)
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint with dependency verification (no auth required)"""
+    """Comprehensive health check endpoint with component status (no auth required)"""
     from datetime import datetime
+    import time
     from app.storage.database import check_database_connection
-    from app.config import load_config
+    from app.config.manager import get_config_manager
+    from app.core.cache import Cache
     
-    health_status = "healthy"
-    issues = []
+    components = {}
+    overall_status = "healthy"
     
     # Check database connection
-    if not check_database_connection():
-        health_status = "unhealthy"
-        issues.append("database")
+    db_start = time.time()
+    db_healthy, db_error = check_database_connection()
+    db_time = (time.time() - db_start) * 1000
+    components["database"] = ComponentHealth(
+        name="database",
+        status="healthy" if db_healthy else "unhealthy",
+        message="Database connection successful" if db_healthy else (db_error or "Database connection failed"),
+        response_time_ms=round(db_time, 2)
+    )
+    if not db_healthy:
+        overall_status = "unhealthy"
     
     # Check cache if configured
     try:
-        config = load_config()
+        from app.config.manager import get_config_manager
+        config = get_config_manager().load()
         if config.cache.type == "redis" and config.cache.connection_string:
-            # Cache health check would go here
-            # For now, we assume cache is optional
-            # TODO: Implement Redis health check
-            pass
+            cache_start = time.time()
+            try:
+                cache = Cache(config.cache.connection_string)
+                await cache.connect()
+                # Test cache operation
+                await cache.set("__health_check__", "test", ttl=1)
+                await cache.get("__health_check__")
+                cache_healthy = True
+                cache_message = "Redis cache connection successful"
+            except Exception as e:
+                cache_healthy = False
+                cache_message = f"Redis cache connection failed: {str(e)}"
+            finally:
+                await cache.disconnect()
+            cache_time = (time.time() - cache_start) * 1000
+            components["cache"] = ComponentHealth(
+                name="cache",
+                status="healthy" if cache_healthy else "degraded",  # Cache is optional
+                message=cache_message,
+                response_time_ms=round(cache_time, 2)
+            )
+            if not cache_healthy:
+                overall_status = "degraded" if overall_status == "healthy" else overall_status
     except Exception as e:
-        # Config errors are not critical for health check
-        # Log but don't fail health check
-        logger.debug(f"Cache health check skipped: {str(e)}")
+        components["cache"] = ComponentHealth(
+            name="cache",
+            status="degraded",
+            message=f"Cache health check skipped: {str(e)}"
+        )
+        overall_status = "degraded" if overall_status == "healthy" else overall_status
+    
+    # Check configuration
+    config_start = time.time()
+    try:
+        from app.config.manager import get_config_manager
+        config = get_config_manager().load()
+        config_healthy = True
+        config_message = "Configuration loaded successfully"
+    except Exception as e:
+        config_healthy = False
+        config_message = f"Configuration load failed: {str(e)}"
+        overall_status = "unhealthy"
+    config_time = (time.time() - config_start) * 1000
+    components["configuration"] = ComponentHealth(
+        name="configuration",
+        status="healthy" if config_healthy else "unhealthy",
+        message=config_message,
+        response_time_ms=round(config_time, 2)
+    )
     
     return HealthResponse(
-        status=health_status,
-        timestamp=datetime.now().isoformat()
+        status=overall_status,
+        timestamp=datetime.now().isoformat(),
+        components=components,
+        version="2.0.0"
+    )
+
+
+@router.get("/health/ready", response_model=HealthResponse)
+async def readiness_check():
+    """Readiness probe - checks if service is ready to accept traffic"""
+    from datetime import datetime
+    from app.storage.database import check_database_connection
+    from app.config.manager import get_config_manager
+    
+    # Readiness checks: database must be available
+    db_ready, _ = check_database_connection()
+    
+    try:
+        config = get_config_manager().load()
+        config_ready = True
+    except Exception:
+        config_ready = False
+    
+    ready = db_ready and config_ready
+    
+    return HealthResponse(
+        status="healthy" if ready else "unhealthy",
+        timestamp=datetime.now().isoformat(),
+        version="2.0.0"
+    )
+
+
+@router.get("/health/live", response_model=HealthResponse)
+async def liveness_check():
+    """Liveness probe - checks if service is alive"""
+    from datetime import datetime
+    
+    # Liveness is simple - just check if the service responds
+    return HealthResponse(
+        status="healthy",
+        timestamp=datetime.now().isoformat(),
+        version="2.0.0"
     )
 
 
@@ -142,13 +233,16 @@ async def chat_completion(
     db: Session = Depends(get_db)
 ):
     """Chat completion endpoint with rate limiting"""
+    import asyncio
     request_id = get_request_id(request)
     
     # Rate limiting is handled by decorator if slowapi is available
     # The limiter middleware will automatically apply limits
     
+    # Apply request timeout from config (timeout is handled at LiteLLM client level)
+    request_timeout = config.server.request_timeout
+    
     try:
-        
         # Classify task if auto mode
         if chat_request.task_type == 'auto' or not chat_request.task_type:
             classification = get_detailed_classification(chat_request)
@@ -157,6 +251,19 @@ async def chat_completion(
         # Select model
         selection = await benchmark_selector.select_model(chat_request)
         logger.info(f"Selected model: {selection.model} from {selection.provider} - {selection.reason}")
+        
+        # Check provider health before use
+        from app.core.provider_health_checker import ProviderHealthChecker
+        health_checker = ProviderHealthChecker()
+        provider_healthy = await health_checker.check_provider_health(
+            selection.provider,
+            litellm_client,
+            force_check=False
+        )
+        
+        if not provider_healthy:
+            logger.warn(f"Provider {selection.provider} is unhealthy, but proceeding with request")
+            # In a full implementation, you might want to select a different provider here
 
         # Execute via LiteLLM with Portkey tracking
         # Get proxy URL from environment or config
@@ -210,10 +317,50 @@ async def chat_completion(
 
     except (ProviderError, RateLimitError, ValidationError) as e:
         # Known errors - log with context and re-raise as HTTPException
+        error_context = create_error_context(
+            error_type=e.code,
+            message=e.message,
+            request_id=request_id,
+            provider=getattr(e, 'provider', None),
+            model=getattr(e, 'model', None),
+            original_exception=e,
+            **e.details
+        )
         logger.error(
             f"Chat request failed: {e.code} - {e.message}",
-            meta={**e.details, "request_id": request_id}
+            meta=error_context.to_dict()
         )
+        
+        # For provider errors, check if all providers failed and provide graceful degradation
+        if isinstance(e, ProviderError):
+            # Get provider status to provide helpful error message
+            try:
+                from app.storage.repositories import ProviderStateRepository
+                provider_states = db.query(ProviderState).filter(
+                    ProviderState.provider.in_(list(config.providers.keys()))
+                ).all()
+                available_providers = [p.provider for p in provider_states if p.available and p.healthy]
+                
+                if not available_providers:
+                    # All providers failed - graceful degradation
+                    raise HTTPException(
+                        status_code=503,
+                        detail={
+                            "error": "All providers are currently unavailable. Please try again later.",
+                            "code": "ALL_PROVIDERS_UNAVAILABLE",
+                            "request_id": request_id,
+                            "provider_status": {
+                                "total_providers": len(config.providers),
+                                "available_providers": 0,
+                                "suggestion": "Please retry after a few moments. The service will automatically retry when providers become available."
+                            },
+                            "retry_after": 60  # Suggest retry after 60 seconds
+                        },
+                        headers={"Retry-After": "60"}
+                    )
+            except Exception:
+                pass  # Fall through to original error handling
+        
         raise HTTPException(
             status_code=400 if isinstance(e, (ValidationError, RateLimitError)) else 502,
             detail={
@@ -221,12 +368,19 @@ async def chat_completion(
                 "code": e.code,
                 "request_id": request_id
             }
-        )
+        ) from e
     except Exception as e:
         # Unknown errors - log full details but return generic message to client
+        error_context = create_error_context(
+            error_type="INTERNAL_ERROR",
+            message=f"Unexpected error: {str(e)}",
+            request_id=request_id,
+            original_exception=e
+        )
         logger.error(
             f"Unexpected error in chat request: {str(e)}",
-            meta={"exception_type": type(e).__name__, "request_id": request_id}
+            meta=error_context.to_dict(),
+            exc_info=True  # Include full stack trace
         )
         raise HTTPException(
             status_code=500,
@@ -235,43 +389,79 @@ async def chat_completion(
                 "code": "INTERNAL_ERROR",
                 "request_id": request_id
             }
-        )
+        ) from e
 
 
 @router.get("/providers/status", response_model=ProvidersStatusResponse)
 async def get_providers_status(
+    request: Request,
     api_key: str = Depends(verify_api_key),
     config: GatewayConfig = Depends(get_gateway_config),
     usage_tracker: UsageTracker = Depends(get_usage_tracker),
     db: Session = Depends(get_db)
 ):
-    """Get provider statuses"""
+    """Get provider statuses (cached for 30 seconds)"""
     from app.storage.repositories import ProviderStateRepository, ModelRateLimitsRepository
+    from app.storage.models import ProviderState
     from app.config.rate_limits import get_provider_rate_limit
     from datetime import datetime, timedelta
     
+    # Check cache if available
+    cache_key = "provider_status:all"
+    cache = getattr(request.app.state, 'cache', None)
+    
+    if cache:
+        try:
+            cached_result = await cache.get_json(cache_key)
+            if cached_result:
+                logger.debug("Returning cached provider status")
+                return ProvidersStatusResponse(**cached_result)
+        except Exception as e:
+            logger.warn(f"Cache read failed: {str(e)}")
+    
     providers = []
+    
+    # Get all enabled provider names
+    enabled_providers = [
+        name for name, provider_config in config.providers.items()
+        if provider_config.enabled
+    ]
+    
+    if not enabled_providers:
+        return ProvidersStatusResponse(providers=[])
+    
+    # Batch query all provider states at once (fix N+1 query problem)
+    provider_states = {
+        state.provider: state
+        for state in db.query(ProviderState).filter(
+            ProviderState.provider.in_(enabled_providers)
+        ).all()
+    }
+    
+    # Get all stored rate limits at once
+    stored_rate_limits = ModelRateLimitsRepository.get_all(db)
+    all_model_rate_limits = {}
+    for stored in stored_rate_limits:
+        if stored.provider not in all_model_rate_limits:
+            all_model_rate_limits[stored.provider] = {}
+        all_model_rate_limits[stored.provider][stored.model or "default"] = ModelRateLimit(
+            perMinute=stored.per_minute,
+            perDay=stored.per_day
+        )
     
     # Get all configured providers
     for provider_name, provider_config in config.providers.items():
         if not provider_config.enabled:
             continue
         
-        # Get provider state from database
-        state = ProviderStateRepository.get(db, provider_name)
+        # Get provider state from batch query result
+        state = provider_states.get(provider_name)
         
         # Get rate limit config
         rate_limit_config = get_provider_rate_limit(provider_name)
         
-        # Get stored rate limits from database
-        stored_rate_limits = ModelRateLimitsRepository.get_all(db)
-        model_rate_limits = {}
-        for stored in stored_rate_limits:
-            if stored.provider == provider_name:
-                model_rate_limits[stored.model or "default"] = ModelRateLimit(
-                    perMinute=stored.per_minute,
-                    perDay=stored.per_day
-                )
+        # Get stored rate limits from batch query result
+        model_rate_limits = all_model_rate_limits.get(provider_name, {})
         
         # Get usage stats for last hour
         stats = usage_tracker.get_provider_stats(provider_name, time_window=3600000, db=db)
@@ -307,7 +497,16 @@ async def get_providers_status(
         
         providers.append(provider_status)
     
-    return ProvidersStatusResponse(providers=providers)
+    response = ProvidersStatusResponse(providers=providers)
+    
+    # Cache the result for 30 seconds
+    if cache:
+        try:
+            await cache.set_json(cache_key, response.model_dump(), ttl=30)
+        except Exception as e:
+            logger.warn(f"Cache write failed: {str(e)}")
+    
+    return response
 
 
 @router.get("/usage", response_model=UsageResponse)

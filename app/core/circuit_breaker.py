@@ -1,13 +1,13 @@
 """
 Circuit Breaker Pattern
-Prevents cascading failures by opening circuit after threshold failures
+Wraps circuitbreaker library to maintain existing API
 """
 
 from enum import Enum
-from datetime import datetime, timedelta
 from typing import Callable, Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import asyncio
+from circuitbreaker import CircuitBreaker as BaseCircuitBreaker
 from app.utils.logger import Logger
 
 
@@ -27,18 +27,8 @@ class CircuitBreakerConfig:
     expected_exception: type = Exception
 
 
-@dataclass
-class CircuitBreakerStats:
-    """Circuit breaker statistics"""
-    failures: int = 0
-    successes: int = 0
-    last_failure_time: Optional[datetime] = None
-    state: CircuitState = CircuitState.CLOSED
-    opened_at: Optional[datetime] = None
-
-
 class CircuitBreaker:
-    """Circuit breaker implementation"""
+    """Circuit breaker implementation using circuitbreaker library"""
 
     def __init__(
         self,
@@ -47,93 +37,57 @@ class CircuitBreaker:
     ):
         self.name = name
         self.config = config or CircuitBreakerConfig()
-        self.stats = CircuitBreakerStats()
         self.logger = Logger(f"CircuitBreaker:{name}")
-        self._lock = asyncio.Lock()
+        
+        # Initialize underlying circuit breaker
+        # Note: circuitbreaker uses failure_threshold and recovery_timeout
+        # success_threshold is handled internally by circuitbreaker
+        self._breaker = BaseCircuitBreaker(
+            failure_threshold=self.config.failure_threshold,
+            recovery_timeout=self.config.timeout,
+            expected_exception=self.config.expected_exception,
+            name=name
+        )
 
     async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-        """Execute function with circuit breaker protection"""
-        async with self._lock:
-            # Check if circuit should transition
-            await self._check_state_transition()
-
-            # If circuit is open, reject immediately
-            if self.stats.state == CircuitState.OPEN:
-                raise CircuitBreakerOpenError(
-                    f"Circuit breaker '{self.name}' is OPEN. "
-                    f"Service unavailable."
-                )
-
-        # Execute function
+        """Execute function with circuit breaker protection
+        
+        The circuit breaker library handles state checks internally.
+        If the circuit is open, it will raise CircuitBreakerError automatically.
+        """
         try:
-            result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
-            await self._record_success()
-            return result
-        except self.config.expected_exception as e:
-            await self._record_failure()
-            raise
-
-    async def _check_state_transition(self):
-        """Check and update circuit breaker state"""
-        now = datetime.now()
-
-        # Transition from OPEN to HALF_OPEN after timeout
-        if (
-            self.stats.state == CircuitState.OPEN
-            and self.stats.opened_at
-            and (now - self.stats.opened_at).total_seconds() >= self.config.timeout
-        ):
-            self.stats.state = CircuitState.HALF_OPEN
-            self.stats.successes = 0
-            self.logger.info(f"Circuit breaker '{self.name}' transitioning to HALF_OPEN")
-
-    async def _record_success(self):
-        """Record successful call"""
-        async with self._lock:
-            if self.stats.state == CircuitState.HALF_OPEN:
-                self.stats.successes += 1
-                if self.stats.successes >= self.config.success_threshold:
-                    self.stats.state = CircuitState.CLOSED
-                    self.stats.failures = 0
-                    self.stats.successes = 0
-                    self.logger.info(f"Circuit breaker '{self.name}' CLOSED (recovered)")
-            elif self.stats.state == CircuitState.CLOSED:
-                # Reset failure count on success
-                self.stats.failures = 0
-
-    async def _record_failure(self):
-        """Record failed call"""
-        async with self._lock:
-            self.stats.failures += 1
-            self.stats.last_failure_time = datetime.now()
-
-            if self.stats.state == CircuitState.HALF_OPEN:
-                # Any failure in half-open goes back to open
-                self.stats.state = CircuitState.OPEN
-                self.stats.opened_at = datetime.now()
-                self.stats.successes = 0
-                self.logger.warn(f"Circuit breaker '{self.name}' OPEN (failed in half-open)")
-            elif (
-                self.stats.state == CircuitState.CLOSED
-                and self.stats.failures >= self.config.failure_threshold
-            ):
-                self.stats.state = CircuitState.OPEN
-                self.stats.opened_at = datetime.now()
-                self.logger.error(
-                    f"Circuit breaker '{self.name}' OPEN "
-                    f"({self.stats.failures} failures >= {self.config.failure_threshold})"
+            # Use circuitbreaker's async call method (handles state internally)
+            if asyncio.iscoroutinefunction(func):
+                return await self._breaker.call_async(func, *args, **kwargs)
+            else:
+                # For sync functions, run in executor
+                loop = asyncio.get_event_loop()
+                return await loop.run_in_executor(
+                    None,
+                    lambda: self._breaker.call(func, *args, **kwargs)
                 )
+        except Exception as e:
+            # Re-raise the exception (circuitbreaker will track it)
+            # If circuit is open, circuitbreaker will raise CircuitBreakerError
+            raise
 
     def get_state(self) -> CircuitState:
         """Get current circuit breaker state"""
-        return self.stats.state
+        # Map circuitbreaker states to our CircuitState enum
+        if self._breaker.opened:
+            return CircuitState.OPEN
+        elif self._breaker.closed:
+            return CircuitState.CLOSED
+        else:
+            # circuitbreaker doesn't explicitly expose half-open, but we can infer it
+            # If not opened and not closed, it's likely in recovery (half-open)
+            return CircuitState.HALF_OPEN
 
     def is_open(self) -> bool:
         """Check if circuit is open"""
-        return self.stats.state == CircuitState.OPEN
+        return self._breaker.opened
 
 
-class CircuitBreakerOpenError(Exception):
+class CircuitBreakerOpenError(CircuitBreakerError):
     """Raised when circuit breaker is open"""
     pass
-

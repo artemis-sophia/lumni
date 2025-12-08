@@ -27,7 +27,11 @@ from app.cli.utils import (
     print_success,
     print_warning,
     print_info,
-    console
+    console,
+    MenuContext,
+    create_enhanced_menu,
+    create_hierarchical_menu,
+    show_breadcrumb
 )
 from app.config import load_config
 
@@ -212,45 +216,51 @@ def show_settings():
 
 @app.command()
 def menu():
-    """Interactive settings menu with arrow key navigation"""
+    """Interactive settings menu with enhanced navigation"""
+    context = MenuContext()
     try:
         while True:
-            # Main menu
-            result = radiolist_dialog(
+            # Main menu with enhanced navigation
+            menu_items = [
+                ("show", "Show All Settings"),
+                ("provider", "Configure Provider"),
+                ("unified-key", "Generate Unified API Key"),
+                ("fallback", "Configure Fallback"),
+                ("monitoring", "Configure Monitoring"),
+                ("export", "Export Configuration"),
+                ("import", "Import Configuration"),
+                ("reset", "Reset Configuration"),
+                ("exit", "Exit"),
+            ]
+            
+            result = create_enhanced_menu(
                 title="Settings Menu",
-                text="Use ↑↓ arrow keys to navigate, Space to select, Enter to confirm:",
-                values=[
-                    ("show", "Show All Settings"),
-                    ("provider", "Configure Provider"),
-                    ("unified-key", "Generate Unified API Key"),
-                    ("fallback", "Configure Fallback"),
-                    ("monitoring", "Configure Monitoring"),
-                    ("export", "Export Configuration"),
-                    ("import", "Import Configuration"),
-                    ("reset", "Reset Configuration"),
-                    ("exit", "Exit"),
-                ],
-            ).run()
+                items=menu_items,
+                context=context,
+                help_text="Manage Lumni API Gateway configuration",
+                searchable=True
+            )
             
             if result is None or result == "exit":
                 break
             
             if result == "show":
                 console.clear()
+                show_breadcrumb(context)
                 show_settings()
                 input("\nPress Enter to continue...")
             
             elif result == "provider":
-                configure_provider_interactive()
+                configure_provider_interactive(context)
             
             elif result == "unified-key":
                 generate_unified_key_interactive()
             
             elif result == "fallback":
-                configure_fallback_interactive()
+                configure_fallback_interactive(context)
             
             elif result == "monitoring":
-                configure_monitoring_interactive()
+                configure_monitoring_interactive(context)
             
             elif result == "export":
                 export_interactive()
@@ -270,8 +280,10 @@ def menu():
         raise typer.Exit(1)
 
 
-def configure_provider_interactive():
-    """Interactive provider configuration"""
+def configure_provider_interactive(context: Optional[MenuContext] = None):
+    """Interactive provider configuration with enhanced navigation"""
+    if context is None:
+        context = MenuContext()
     try:
         config = load_config_json()
         providers = list(config.get("providers", {}).keys())
@@ -280,30 +292,35 @@ def configure_provider_interactive():
             message_dialog(title="Error", text="No providers found in configuration").run()
             return
         
-        # Select provider
-        provider_name = radiolist_dialog(
+        # Select provider with enhanced menu
+        provider_items = [(p, p) for p in sorted(providers)]
+        provider_name = create_enhanced_menu(
             title="Select Provider",
-            text="Use arrow keys to select a provider:",
-            values=[(p, p) for p in sorted(providers)],
-        ).run()
+            items=provider_items,
+            context=context,
+            help_text="Choose a provider to configure",
+            searchable=True
+        )
         
         if not provider_name:
             return
         
         provider_config = config["providers"][provider_name]
         
-        # Configure provider
+        # Configure provider with enhanced menu
         while True:
-            action = radiolist_dialog(
+            action_items = [
+                ("toggle", f"Toggle Enabled (Currently: {'Enabled' if provider_config['enabled'] else 'Disabled'})"),
+                ("priority", f"Set Priority (Currently: {provider_config['priority']})"),
+                ("api-key", "Set API Key"),
+                ("back", "Back to Main Menu"),
+            ]
+            action = create_enhanced_menu(
                 title=f"Configure {provider_name}",
-                text="Select an action:",
-                values=[
-                    ("toggle", f"Toggle Enabled (Currently: {'Enabled' if provider_config['enabled'] else 'Disabled'})"),
-                    ("priority", f"Set Priority (Currently: {provider_config['priority']})"),
-                    ("api-key", "Set API Key"),
-                    ("back", "Back to Main Menu"),
-                ],
-            ).run()
+                items=action_items,
+                context=context,
+                help_text=f"Configure settings for {provider_name} provider"
+            )
             
             if action == "back":
                 break
@@ -410,8 +427,10 @@ def generate_unified_key_interactive():
         message_dialog(title="Error", text=f"Failed to generate unified API key: {str(e)}").run()
 
 
-def configure_fallback_interactive():
-    """Interactive fallback configuration"""
+def configure_fallback_interactive(context: Optional[MenuContext] = None):
+    """Interactive fallback configuration with enhanced navigation"""
+    if context is None:
+        context = MenuContext()
     try:
         config = load_config_json()
         
@@ -422,15 +441,17 @@ def configure_fallback_interactive():
         fallback_config = config["fallback"]
         
         while True:
-            action = radiolist_dialog(
+            action_items = [
+                ("toggle", f"Toggle Enabled (Currently: {'Enabled' if fallback_config['enabled'] else 'Disabled'})"),
+                ("strategy", f"Set Strategy (Currently: {fallback_config['strategy']})"),
+                ("back", "Back to Main Menu"),
+            ]
+            action = create_enhanced_menu(
                 title="Configure Fallback",
-                text="Select an action:",
-                values=[
-                    ("toggle", f"Toggle Enabled (Currently: {'Enabled' if fallback_config['enabled'] else 'Disabled'})"),
-                    ("strategy", f"Set Strategy (Currently: {fallback_config['strategy']})"),
-                    ("back", "Back to Main Menu"),
-                ],
-            ).run()
+                items=action_items,
+                context=context,
+                help_text="Configure fallback behavior and strategy"
+            )
             
             if action == "back":
                 break
@@ -461,8 +482,10 @@ def configure_fallback_interactive():
         message_dialog(title="Error", text=f"Failed to configure fallback: {str(e)}").run()
 
 
-def configure_monitoring_interactive():
-    """Interactive monitoring configuration"""
+def configure_monitoring_interactive(context: Optional[MenuContext] = None):
+    """Interactive monitoring configuration with enhanced navigation"""
+    if context is None:
+        context = MenuContext()
     try:
         config = load_config_json()
         
@@ -473,16 +496,18 @@ def configure_monitoring_interactive():
         monitoring_config = config["monitoring"]
         
         while True:
-            action = radiolist_dialog(
+            action_items = [
+                ("toggle", f"Toggle Enabled (Currently: {'Enabled' if monitoring_config['enabled'] else 'Disabled'})"),
+                ("track_usage", f"Track Usage (Currently: {'Enabled' if monitoring_config.get('trackUsage', True) else 'Disabled'})"),
+                ("threshold", f"Alert Threshold (Currently: {monitoring_config.get('alertThreshold', 0.8) * 100}%)"),
+                ("back", "Back to Main Menu"),
+            ]
+            action = create_enhanced_menu(
                 title="Configure Monitoring",
-                text="Select an action:",
-                values=[
-                    ("toggle", f"Toggle Enabled (Currently: {'Enabled' if monitoring_config['enabled'] else 'Disabled'})"),
-                    ("track_usage", f"Track Usage (Currently: {'Enabled' if monitoring_config.get('trackUsage', True) else 'Disabled'})"),
-                    ("threshold", f"Alert Threshold (Currently: {monitoring_config.get('alertThreshold', 0.8) * 100}%)"),
-                    ("back", "Back to Main Menu"),
-                ],
-            ).run()
+                items=action_items,
+                context=context,
+                help_text="Configure monitoring and alerting settings"
+            )
             
             if action == "back":
                 break

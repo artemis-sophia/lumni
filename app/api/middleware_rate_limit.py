@@ -9,6 +9,7 @@ try:
     from slowapi.errors import RateLimitExceeded
     from fastapi import Request, HTTPException
     import os
+    import hashlib
 
     # Initialize rate limiter
     # Use Redis if available, otherwise use in-memory storage
@@ -46,11 +47,15 @@ try:
 
     # Custom rate limit key function that uses API key if available
     def rate_limit_key_func(request: Request) -> str:
-        """Rate limit key function - uses API key if available, otherwise IP"""
+        """Rate limit key function - uses API key if available, otherwise IP
+        
+        Uses SHA-256 hash of API key to prevent exposure while allowing per-key rate limiting.
+        """
         api_key = get_api_key_from_request(request)
         if api_key and api_key != get_remote_address(request):
-            # Use API key for rate limiting (allows per-key limits)
-            return f"api_key:{api_key[:10]}"  # Use first 10 chars for privacy
+            # Use SHA-256 hash of API key for rate limiting (allows per-key limits without exposure)
+            api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()[:16]  # First 16 chars of hash
+            return f"api_key:{api_key_hash}"
         return get_remote_address(request)
 
 

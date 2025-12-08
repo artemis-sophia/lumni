@@ -11,13 +11,39 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.api.v1.routes import router
-from app.config import load_config
+from app.config.manager import get_config_manager
 from app.storage.database import init_db, engine, check_database_connection
 from app.utils.logger import Logger
 from app.utils.exceptions import LumniError, ConfigurationError
 from app.core.cache import Cache
 
 logger = Logger("Main")
+
+# Initialize OpenTelemetry
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    
+    # Initialize tracing
+    trace.set_tracer_provider(TracerProvider())
+    tracer = trace.get_tracer(__name__)
+    
+    # Add console exporter for development (can be replaced with OTLP exporter for production)
+    span_processor = BatchSpanProcessor(ConsoleSpanExporter())
+    trace.get_tracer_provider().add_span_processor(span_processor)
+    
+    FastAPIInstrumentor = FastAPIInstrumentor
+    logger.info("OpenTelemetry instrumentation available")
+except ImportError:
+    logger.warn("OpenTelemetry not available - install opentelemetry packages")
+    FastAPIInstrumentor = None
+    trace = None
+    tracer = None
+    generate_latest = None
+    CONTENT_TYPE_LATEST = None
 
 
 def validate_environment():
@@ -53,18 +79,27 @@ async def lifespan(app: FastAPI):
         logger.error(f"Environment validation failed: {e.message}")
         raise
     
+    # Initialize OpenTelemetry instrumentation
+    if FastAPIInstrumentor:
+        try:
+            FastAPIInstrumentor.instrument_app(app)
+            logger.info("OpenTelemetry FastAPI instrumentation initialized")
+        except Exception as e:
+            logger.warn(f"Failed to initialize OpenTelemetry: {e}")
+    
     # Initialize database
     init_db()
     logger.info("Database initialized")
     
     # Verify database connection
-    if not check_database_connection():
-        logger.warn("Database connection check failed, but continuing startup")
+    db_healthy, db_error = check_database_connection()
+    if not db_healthy:
+        logger.warn(f"Database connection check failed: {db_error}, but continuing startup")
     else:
         logger.info("Database connection verified")
     
     # Load configuration
-    config = load_config()
+    config = get_config_manager().load()
     logger.info("Configuration loaded")
     
     # Initialize Redis cache if configured
@@ -85,12 +120,15 @@ async def lifespan(app: FastAPI):
         logger.info("Redis cache disconnected")
 
 
-# Create FastAPI app
+# Create FastAPI app with request size limits
+# Limit request body to 10MB to prevent DoS attacks
 app = FastAPI(
     title="Lumni API Gateway",
     description="Unified Student API Gateway with smart fallback and limit monitoring",
     version="2.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Request body size limit: 10MB
+    # This is enforced at the ASGI level
 )
 
 # CORS middleware - configurable via environment variable
@@ -113,21 +151,65 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Request ID Middleware
+# Request Body Size Limit Middleware
+MAX_REQUEST_BODY_SIZE = 10 * 1024 * 1024  # 10MB
+
+class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
+    """Middleware to limit request body size"""
+    async def dispatch(self, request: Request, call_next):
+        # Check Content-Length header
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                size = int(content_length)
+                if size > MAX_REQUEST_BODY_SIZE:
+                    return JSONResponse(
+                        status_code=413,
+                        content={
+                            "error": f"Request body too large. Maximum size is {MAX_REQUEST_BODY_SIZE / 1024 / 1024}MB",
+                            "code": "PAYLOAD_TOO_LARGE",
+                            "max_size_mb": MAX_REQUEST_BODY_SIZE / 1024 / 1024
+                        }
+                    )
+            except ValueError:
+                pass  # Invalid content-length, let it through to be handled by FastAPI
+        
+        response = await call_next(request)
+        return response
+
+
+# Request ID Middleware with OpenTelemetry trace correlation
 class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Middleware to add request ID to all requests"""
+    """Middleware to add request ID and trace correlation to all requests"""
     async def dispatch(self, request: Request, call_next):
         # Generate or get request ID
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         request.state.request_id = request_id
         
-        # Add request ID to logger context
-        # Note: This is a simple implementation. For production, consider using contextvars
+        # Add trace context if available
+        if trace:
+            span = trace.get_current_span()
+            if span:
+                span.set_attribute("http.request_id", request_id)
+                # Set trace ID in response headers
+                trace_id = format(span.get_span_context().trace_id, '032x')
+                request.state.trace_id = trace_id
+        
+        # Set request ID in context variable for logger
+        from app.utils.logger import _request_id_context
+        _request_id_context.set(request_id)
+        
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
+        if trace and hasattr(request.state, 'trace_id'):
+            response.headers["X-Trace-ID"] = request.state.trace_id
+        
+        # Clear request ID from context after request
+        _request_id_context.set(None)
         return response
 
 
+app.add_middleware(RequestSizeLimitMiddleware)
 app.add_middleware(RequestIDMiddleware)
 
 # Rate Limiting Middleware
@@ -164,6 +246,18 @@ async def lumni_exception_handler(request: Request, exc: LumniError):
 # Include routers
 app.include_router(router, prefix="/api/v1", tags=["v1"])
 
+# Add Prometheus metrics endpoint
+if generate_latest:
+    @app.get("/metrics")
+    async def metrics():
+        """Prometheus metrics endpoint"""
+        from starlette.responses import Response
+        return Response(
+            content=generate_latest(),
+            media_type=CONTENT_TYPE_LATEST
+        )
+    logger.info("Prometheus metrics endpoint available at /metrics")
+
 
 @app.get("/")
 async def root():
@@ -177,7 +271,8 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    config = load_config()
+    from app.config.manager import get_config_manager
+    config = get_config_manager().load()
     uvicorn.run(
         "app.main:app",
         host=config.server.host,

@@ -7,19 +7,25 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
-from pydantic import Field, BaseModel
+from pydantic import Field, BaseModel, field_validator
 
 
 class ServerConfig(BaseModel):
     """Server configuration"""
     port: int = 3000
     host: str = "0.0.0.0"
+    request_timeout: float = Field(30.0, alias="requestTimeout", description="Request timeout in seconds")
 
 
 class AuthConfig(BaseModel):
     """Authentication configuration"""
     unified_api_key: str = Field(..., alias="unifiedApiKey")
     key_rotation_enabled: bool = Field(False, alias="keyRotationEnabled")
+    per_key_rate_limits: Optional[Dict[str, Dict[str, int]]] = Field(
+        None,
+        alias="perKeyRateLimits",
+        description="Per-API-key rate limits: {key_hash: {requestsPerMinute: int, requestsPerDay: int}}"
+    )
 
     class Config:
         populate_by_name = True
@@ -83,6 +89,7 @@ class LiteLLMConfig(BaseModel):
     """LiteLLM configuration"""
     config_path: str = Field("./litellm_config.yaml", alias="configPath")
     proxy: Dict[str, Any] = {}
+    request_timeout: float = Field(30.0, alias="requestTimeout", description="LLM request timeout in seconds")
 
     class Config:
         populate_by_name = True
@@ -136,17 +143,25 @@ class GatewayConfig(BaseModel):
         populate_by_name = True
 
 
+def _resolve_env_var(value: str) -> str:
+    """Resolve a single environment variable reference"""
+    if not isinstance(value, str) or not (value.startswith("${") and value.endswith("}")):
+        return value
+    
+    env_var = value[2:-1]
+    resolved = os.getenv(env_var)
+    
+    # Special handling: Codestral can fallback to MISTRAL_API_KEY
+    if env_var == "CODESTRAL_API_KEY" and not resolved:
+        resolved = os.getenv("MISTRAL_API_KEY")
+    
+    return resolved if resolved is not None else value
+
+
 def resolve_env_vars(obj: Any) -> Any:
-    """Resolve environment variables in config object"""
-    if isinstance(obj, str) and obj.startswith("${") and obj.endswith("}"):
-        env_var = obj[2:-1]
-        value = os.getenv(env_var)
-        
-        # Special handling: Codestral can fallback to MISTRAL_API_KEY
-        if env_var == "CODESTRAL_API_KEY" and not value:
-            value = os.getenv("MISTRAL_API_KEY")
-        
-        return value or obj
+    """Recursively resolve environment variables in config object"""
+    if isinstance(obj, str):
+        return _resolve_env_var(obj)
     
     if isinstance(obj, list):
         return [resolve_env_vars(item) for item in obj]
@@ -158,7 +173,39 @@ def resolve_env_vars(obj: Any) -> Any:
 
 
 def load_config(config_path: Optional[str] = None) -> GatewayConfig:
-    """Load configuration from JSON file with environment variable substitution"""
+    """Load configuration from JSON file with environment variable substitution
+    Supports multi-environment configuration via dynaconf
+    """
+    # Try to use dynaconf for multi-environment support
+    try:
+        from dynaconf import Dynaconf
+        
+        # Determine environment
+        env = os.getenv("ENVIRONMENT", "development").lower()
+        
+        # Initialize dynaconf with environment support
+        settings = Dynaconf(
+            envvar_prefix="LUMNI",
+            settings_files=['config.json', f'config.{env}.json'],
+            environments=True,
+            env=env,
+            load_dotenv=True,
+            dotenv_path=".env",
+        )
+        
+        # Get config as dict, resolving env vars
+        config_data = settings.as_dict()
+        
+        # Resolve additional ${ENV_VAR} patterns that dynaconf might not handle
+        resolved_config = resolve_env_vars(config_data)
+        
+        # Convert to Pydantic model
+        return GatewayConfig(**resolved_config)
+    except ImportError:
+        # Fallback to original implementation if dynaconf not available
+        pass
+    
+    # Original implementation (fallback)
     if config_path is None:
         config_path = os.getenv("CONFIG_PATH", "./config.json")
     

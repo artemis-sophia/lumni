@@ -124,3 +124,112 @@ def format_relative_time(dt: datetime) -> str:
     else:
         return f"{int(delta.total_seconds() / 86400)}d ago"
 
+
+# Enhanced menu navigation utilities
+from typing import List, Tuple, Callable, Any
+from prompt_toolkit.shortcuts import radiolist_dialog, message_dialog
+from prompt_toolkit.keys import Keys
+from prompt_toolkit.key_binding import KeyBindings
+
+
+class MenuContext:
+    """Context for hierarchical menu navigation"""
+    def __init__(self):
+        self.breadcrumbs: List[str] = []
+        self.history: List[Tuple[str, Any]] = []
+    
+    def push(self, title: str, data: Any = None):
+        """Push a menu level onto the stack"""
+        self.breadcrumbs.append(title)
+        if data:
+            self.history.append((title, data))
+    
+    def pop(self):
+        """Pop a menu level from the stack"""
+        if self.breadcrumbs:
+            self.breadcrumbs.pop()
+        if self.history:
+            self.history.pop()
+    
+    def get_breadcrumb(self) -> str:
+        """Get breadcrumb string"""
+        return " > ".join(self.breadcrumbs) if self.breadcrumbs else "Main Menu"
+
+
+def create_enhanced_menu(
+    title: str,
+    items: List[Tuple[str, str]],
+    context: Optional[MenuContext] = None,
+    help_text: Optional[str] = None,
+    searchable: bool = False
+) -> Optional[str]:
+    """Create an enhanced menu with navigation features"""
+    if context is None:
+        context = MenuContext()
+    
+    context.push(title)
+    breadcrumb = context.get_breadcrumb()
+    
+    # Build menu text with breadcrumbs and shortcuts
+    menu_text = f"[bold]{breadcrumb}[/bold]\n\n"
+    if help_text:
+        menu_text += f"{help_text}\n\n"
+    menu_text += "Use ↑↓ arrow keys to navigate, Space to select, Enter to confirm\n"
+    menu_text += "[dim]Press 'q' to quit, 'b' to go back, '/' to search[/dim]"
+    
+    # Add search functionality if enabled
+    if searchable and len(items) > 5:
+        # For now, use standard radiolist - search can be added with prompt_toolkit's search
+        pass
+    
+    try:
+        result = radiolist_dialog(
+            title=title,
+            text=menu_text,
+            values=items,
+        ).run()
+        
+        if result is None:
+            context.pop()
+            return None
+        
+        return result
+    except KeyboardInterrupt:
+        context.pop()
+        return None
+
+
+def create_hierarchical_menu(
+    title: str,
+    items: List[Tuple[str, str, Optional[Callable]]],
+    context: Optional[MenuContext] = None
+) -> Optional[str]:
+    """Create a hierarchical menu with sub-menus"""
+    if context is None:
+        context = MenuContext()
+    
+    # Format items for display
+    menu_items = [(item[0], item[1]) for item in items]
+    
+    result = create_enhanced_menu(title, menu_items, context)
+    
+    if result:
+        # Find the selected item and execute its callback if available
+        for item_id, item_label, callback in items:
+            if item_id == result and callback:
+                try:
+                    callback()
+                except Exception as e:
+                    print_error(f"Error executing menu item: {e}")
+                break
+    
+    context.pop()
+    return result
+
+
+def show_breadcrumb(context: MenuContext):
+    """Display breadcrumb navigation"""
+    if context.breadcrumbs:
+        breadcrumb = " > ".join(context.breadcrumbs)
+        console.print(f"[dim]📍 {breadcrumb}[/dim]\n")
+

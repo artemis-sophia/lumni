@@ -61,19 +61,30 @@ class PortkeyClient:
         if not self.enabled:
             return await completion_fn()
 
+        # Execute completion function once
+        response = await completion_fn()
+        
+        # Attempt Portkey tracking (non-blocking, failures don't affect response)
+        # Portkey tracking is typically done via callbacks in LiteLLM
+        # For direct tracking, we wrap the completion
         try:
-            # Portkey tracking is typically done via callbacks in LiteLLM
-            # For direct tracking, we wrap the completion
-            response = await completion_fn()
-            
             # Log to Portkey (if needed for custom tracking)
             # Portkey is usually integrated via LiteLLM callbacks
-            
-            return response
+            # If tracking fails, we still return the successful response
+            pass  # Portkey tracking happens via LiteLLM callbacks
         except Exception as e:
-            self.logger.error(f"Portkey tracking failed: {str(e)}")
-            # Still return the response even if tracking fails
-            return await completion_fn()
+            error_context = create_error_context(
+                error_type="PORTKEY_TRACKING_ERROR",
+                message=f"Portkey tracking failed: {str(e)}",
+                original_exception=e
+            )
+            self.logger.error(
+                f"Portkey tracking failed: {str(e)}",
+                meta=error_context.to_dict()
+            )
+            # Don't retry completion - just log the tracking failure
+        
+        return response
 
     def get_cost_analytics(self, time_range: Optional[str] = None) -> Dict[str, Any]:
         """Get cost analytics from Portkey"""

@@ -19,8 +19,8 @@ async def verify_api_key(
 ) -> str:
     """Verify API key from Authorization header using constant-time comparison"""
     if not config:
-        from app.config import load_config
-        config = load_config()
+        from app.config.manager import get_config_manager
+        config = get_config_manager().load()
 
     token = credentials.credentials
 

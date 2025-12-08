@@ -11,7 +11,8 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
     retry_if_exception_type,
-    RetryError
+    RetryError,
+    AsyncRetrying
 )
 from app.utils.logger import Logger
 
@@ -72,7 +73,7 @@ async def retry_with_custom_backoff(
     **kwargs: Any
 ) -> Any:
     """
-    Retry a function with custom exponential backoff
+    Retry a function with custom exponential backoff using tenacity
     
     Args:
         func: Async function to retry
@@ -82,27 +83,23 @@ async def retry_with_custom_backoff(
         exponential_base: Base for exponential backoff
         *args, **kwargs: Arguments to pass to func
     """
-    last_exception = None
-    
-    for attempt in range(max_attempts):
-        try:
-            return await func(*args, **kwargs)
-        except Exception as e:
-            last_exception = e
-            if attempt < max_attempts - 1:
-                delay = min(
-                    initial_delay * (exponential_base ** attempt),
-                    max_delay
-                )
-                logger.warn(
-                    f"Attempt {attempt + 1}/{max_attempts} failed: {str(e)}. "
-                    f"Retrying in {delay:.2f}s..."
-                )
-                await asyncio.sleep(delay)
-            else:
-                logger.error(f"All {max_attempts} attempts failed for {func.__name__}")
+    async for attempt in AsyncRetrying(
+        stop=stop_after_attempt(max_attempts),
+        wait=wait_exponential(
+            multiplier=initial_delay,
+            max=max_delay,
+            exp_base=exponential_base
+        ),
+        reraise=True
+    ):
+        with attempt:
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                if attempt.retry_state.attempt_number < max_attempts:
+                    logger.warn(
+                        f"Attempt {attempt.retry_state.attempt_number}/{max_attempts} failed: {str(e)}. "
+                        f"Retrying..."
+                    )
                 raise
-    
-    if last_exception:
-        raise last_exception
 

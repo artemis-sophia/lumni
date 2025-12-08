@@ -4,6 +4,7 @@ Wraps litellm.completion() with proxy support and error handling
 """
 
 import os
+from contextvars import ContextVar
 from typing import Optional, Dict, Any, List
 import litellm
 from litellm import completion
@@ -16,13 +17,17 @@ from app.utils.exceptions import ProviderError, RateLimitError
 # Default timeout for API calls (30 seconds)
 DEFAULT_TIMEOUT = float(os.getenv("LLM_REQUEST_TIMEOUT", "30.0"))
 
+# Context variables for thread-local proxy settings
+_proxy_context: ContextVar[Optional[str]] = ContextVar('proxy', default=None)
+
 
 class LiteLLMClient:
     """LiteLLM client wrapper"""
 
-    def __init__(self, config_path: str = "./litellm_config.yaml"):
+    def __init__(self, config_path: str = "./litellm_config.yaml", request_timeout: Optional[float] = None):
         self.logger = Logger("LiteLLMClient")
         self.config_path = config_path
+        self.request_timeout = request_timeout or DEFAULT_TIMEOUT
         
         # Initialize circuit breaker
         self.circuit_breaker = CircuitBreaker(
@@ -91,26 +96,38 @@ class LiteLLMClient:
             if request.stream:
                 completion_params["stream"] = request.stream
 
-            # Configure proxy if provided
+            # Configure proxy if provided (using contextvars for thread-local storage)
             if proxy:
+                # Set proxy in context variable for this request
+                _proxy_context.set(proxy)
                 # LiteLLM supports proxy via environment or extra_params
                 # For HTTP proxies, we can set it in the request
                 completion_params["extra_headers"] = {
                     "http_proxy": proxy,
                     "https_proxy": proxy,
                 }
-                # Also set environment variable for httpx
-                os.environ["HTTP_PROXY"] = proxy
-                os.environ["HTTPS_PROXY"] = proxy
+                # Note: We avoid setting os.environ to prevent global state pollution
+                # LiteLLM/httpx will use the extra_headers for proxy configuration
 
             # Execute completion with timeout
             # LiteLLM uses httpx internally, set timeout via litellm settings
             # Note: LiteLLM timeout is set globally, not per-request
             # We set it here for this request context
+            import asyncio
             original_timeout = getattr(litellm, 'request_timeout', None)
             try:
-                litellm.request_timeout = DEFAULT_TIMEOUT
-                response = await litellm.acompletion(**completion_params)
+                litellm.request_timeout = self.request_timeout
+                # Wrap in asyncio.wait_for for additional timeout protection
+                response = await asyncio.wait_for(
+                    litellm.acompletion(**completion_params),
+                    timeout=self.request_timeout
+                )
+            except asyncio.TimeoutError:
+                raise ProviderError(
+                    f"Request timeout after {self.request_timeout} seconds",
+                    request.provider or "unknown",
+                    {"timeout": self.request_timeout, "model": request.model}
+                )
             finally:
                 if original_timeout is not None:
                     litellm.request_timeout = original_timeout

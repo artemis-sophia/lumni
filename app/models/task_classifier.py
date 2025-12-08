@@ -1,12 +1,37 @@
 """
 Academic Task Classification System
-Implements task classification based on academic research frameworks.
+Uses spaCy for NLP-based text analysis with custom rules wrapper.
 Classifies tasks as "fast" or "powerful" based on multiple factors.
 """
 
 from typing import Literal
 from dataclasses import dataclass
+import re
+import spacy
 from app.api.v1.schemas import ChatRequest
+from app.utils.logger import Logger
+
+logger = Logger("TaskClassifier")
+
+# Load spaCy model (lazy loading)
+_nlp = None
+
+
+def get_nlp():
+    """Get or load spaCy NLP model"""
+    global _nlp
+    if _nlp is None:
+        try:
+            _nlp = spacy.load("en_core_web_sm")
+        except OSError:
+            logger.warn("spaCy model 'en_core_web_sm' not found. Install with: python -m spacy download en_core_web_sm")
+            # Fallback to basic English model if available
+            try:
+                _nlp = spacy.load("en_core_web_lg")
+            except OSError:
+                logger.warn("Falling back to basic regex-based analysis")
+                _nlp = None
+    return _nlp
 
 
 @dataclass
@@ -27,7 +52,7 @@ class TaskClassification:
 
 
 def classify_task(request: ChatRequest) -> TaskClassification:
-    """Classify a task based on request characteristics"""
+    """Classify a task based on request characteristics using spaCy NLP"""
     complexity = analyze_complexity(request)
     factors = calculate_factors(request, complexity)
 
@@ -46,17 +71,46 @@ def classify_task(request: ChatRequest) -> TaskClassification:
 
 
 def analyze_complexity(request: ChatRequest) -> TaskComplexity:
-    """Analyze task complexity from request"""
-    total_length = sum(len(msg.content) for msg in request.messages)
+    """Analyze task complexity from request using spaCy NLP"""
+    nlp = get_nlp()
+    
+    # Combine all messages for analysis
+    combined_text = " ".join(msg.content for msg in request.messages)
+    total_length = len(combined_text)
     avg_length = total_length / len(request.messages) if request.messages else 0
     max_length = max((len(msg.content) for msg in request.messages), default=0)
 
-    # Complexity based on message characteristics
-    complexity: Literal['simple', 'moderate', 'complex'] = 'simple'
-    if max_length > 2000 or len(request.messages) > 5:
-        complexity = 'complex'
-    elif avg_length > 500 or len(request.messages) > 2:
-        complexity = 'moderate'
+    # Use spaCy for advanced analysis if available
+    if nlp and combined_text:
+        doc = nlp(combined_text)
+        
+        # Analyze sentence complexity
+        sentence_count = len(list(doc.sents))
+        avg_sentence_length = len(doc) / sentence_count if sentence_count > 0 else 0
+        
+        # Count named entities (indicates complexity)
+        entity_count = len(doc.ents)
+        
+        # Analyze POS tags for complexity indicators
+        complex_pos_tags = ['NOUN', 'VERB', 'ADJ', 'ADV']
+        complex_pos_count = sum(1 for token in doc if token.pos_ in complex_pos_tags)
+        complexity_ratio = complex_pos_count / len(doc) if len(doc) > 0 else 0
+        
+        # Determine complexity based on NLP features
+        if max_length > 2000 or len(request.messages) > 5 or avg_sentence_length > 25 or entity_count > 5:
+            complexity: Literal['simple', 'moderate', 'complex'] = 'complex'
+        elif avg_length > 500 or len(request.messages) > 2 or avg_sentence_length > 15 or entity_count > 2:
+            complexity = 'moderate'
+        else:
+            complexity = 'simple'
+    else:
+        # Fallback to basic analysis
+        if max_length > 2000 or len(request.messages) > 5:
+            complexity = 'complex'
+        elif avg_length > 500 or len(request.messages) > 2:
+            complexity = 'moderate'
+        else:
+            complexity = 'simple'
 
     # Token intensity
     token_intensity: Literal['low', 'medium', 'high'] = 'low'
@@ -65,11 +119,44 @@ def analyze_complexity(request: ChatRequest) -> TaskComplexity:
     elif total_length > 1000:
         token_intensity = 'medium'
 
-    # Criticality (default to non-critical, can be overridden)
+    # Criticality detection using spaCy NER
     criticality: Literal['non-critical', 'important', 'critical'] = 'non-critical'
+    if nlp and combined_text:
+        doc = nlp(combined_text)
+        # Look for criticality indicators in entities and keywords
+        critical_keywords = ['critical', 'urgent', 'important', 'essential', 'vital', 'crucial']
+        critical_entities = ['PERSON', 'ORG', 'GPE']  # People, organizations, locations often indicate importance
+        
+        has_critical_keywords = any(
+            keyword.lower() in token.text.lower() 
+            for keyword in critical_keywords 
+            for token in doc
+        )
+        has_important_entities = len([e for e in doc.ents if e.label_ in critical_entities]) > 3
+        
+        if has_critical_keywords or has_important_entities:
+            criticality = 'critical' if has_critical_keywords else 'important'
+    else:
+        # Fallback regex-based detection
+        critical_pattern = re.compile(
+            r'\b(critical|urgent|important|essential|vital|crucial)\b',
+            re.IGNORECASE
+        )
+        if critical_pattern.search(combined_text):
+            criticality = 'critical'
 
     # Time sensitivity (default to medium for interactive)
     time_sensitivity: Literal['low', 'medium', 'high'] = 'medium'
+    if nlp and combined_text:
+        doc = nlp(combined_text)
+        time_keywords = ['urgent', 'asap', 'immediately', 'quick', 'fast', 'now']
+        has_time_keywords = any(
+            keyword.lower() in token.text.lower()
+            for keyword in time_keywords
+            for token in doc
+        )
+        if has_time_keywords:
+            time_sensitivity = 'high'
 
     return TaskComplexity(
         complexity=complexity,
@@ -83,20 +170,42 @@ def calculate_factors(
     request: ChatRequest,
     complexity: TaskComplexity
 ) -> dict[str, float]:
-    """Calculate classification factors"""
-    import re
+    """Calculate classification factors using spaCy NLP"""
+    nlp = get_nlp()
+    combined_text = " ".join(msg.content for msg in request.messages)
 
     has_system_message = any(msg.role == 'system' for msg in request.messages)
     has_code_blocks = any('```' in msg.content for msg in request.messages)
-    has_complex_keywords = any(
-        re.search(
-            r'\b(reason|analyze|complex|critical|important|detailed|comprehensive|strategic|planning)\b',
-            msg.content,
-            re.IGNORECASE
+    
+    # Use spaCy for keyword detection if available
+    if nlp and combined_text:
+        doc = nlp(combined_text)
+        
+        # Complex keywords using spaCy lemmatization
+        complex_lemmas = {'reason', 'analyze', 'complex', 'critical', 'important', 
+                         'detailed', 'comprehensive', 'strategic', 'planning',
+                         'evaluate', 'assess', 'examine', 'investigate'}
+        has_complex_keywords = any(
+            token.lemma_.lower() in complex_lemmas
+            for token in doc
         )
-        for msg in request.messages
-    )
-    has_long_messages = any(len(msg.content) > 2000 for msg in request.messages)
+        
+        # Detect long messages using spaCy sentence analysis
+        has_long_messages = any(
+            len(list(nlp(msg.content).sents)) > 3 or len(msg.content) > 2000
+            for msg in request.messages
+        )
+    else:
+        # Fallback regex-based detection
+        has_complex_keywords = any(
+            re.search(
+                r'\b(reason|analyze|complex|critical|important|detailed|comprehensive|strategic|planning)\b',
+                msg.content,
+                re.IGNORECASE
+            )
+            for msg in request.messages
+        )
+        has_long_messages = any(len(msg.content) > 2000 for msg in request.messages)
 
     return {
         'complexity': 1.0 if complexity.complexity == 'complex' else (0.5 if complexity.complexity == 'moderate' else 0.0),
@@ -159,4 +268,3 @@ def get_recommended_category(request: ChatRequest) -> Literal['fast', 'powerful'
 def get_detailed_classification(request: ChatRequest) -> TaskClassification:
     """Get classification with detailed information"""
     return classify_task(request)
-

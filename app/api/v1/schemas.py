@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 class Message(BaseModel):
     """Chat message"""
     role: Literal["system", "user", "assistant"] = Field(..., description="Message role")
-    content: str = Field(..., min_length=1, max_length=1000000, description="Message content")
+    content: str = Field(..., min_length=1, max_length=100000, description="Message content (max 100KB)")
     
     @field_validator('content')
     @classmethod
@@ -26,10 +26,36 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     provider: Optional[str] = None
     task_type: Optional[str] = Field(None, alias="task_type")  # fast, powerful, auto
-    messages: List[Message]
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = Field(None, alias="max_tokens")
+    messages: List[Message] = Field(..., min_length=1, max_length=100, description="Message list (max 100 messages)")
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0, description="Temperature (0.0-2.0)")
+    max_tokens: Optional[int] = Field(None, ge=1, le=1000000, alias="max_tokens", description="Max tokens (1-1,000,000)")
     stream: Optional[bool] = False
+
+    @field_validator('messages')
+    @classmethod
+    def validate_messages(cls, v: List[Message]) -> List[Message]:
+        """Validate message list"""
+        if not v or len(v) == 0:
+            raise ValueError("At least one message is required")
+        if len(v) > 100:
+            raise ValueError("Maximum 100 messages allowed")
+        return v
+    
+    @field_validator('temperature')
+    @classmethod
+    def validate_temperature(cls, v: Optional[float]) -> Optional[float]:
+        """Validate temperature range"""
+        if v is not None and (v < 0.0 or v > 2.0):
+            raise ValueError("Temperature must be between 0.0 and 2.0")
+        return v
+    
+    @field_validator('max_tokens')
+    @classmethod
+    def validate_max_tokens(cls, v: Optional[int]) -> Optional[int]:
+        """Validate max_tokens range"""
+        if v is not None and (v < 1 or v > 1000000):
+            raise ValueError("max_tokens must be between 1 and 1,000,000")
+        return v
 
     class Config:
         populate_by_name = True
@@ -166,8 +192,18 @@ class ModelStatusResponse(BaseModel):
         populate_by_name = True
 
 
+class ComponentHealth(BaseModel):
+    """Component health status"""
+    name: str
+    status: str  # healthy, unhealthy, degraded
+    message: Optional[str] = None
+    response_time_ms: Optional[float] = None
+
+
 class HealthResponse(BaseModel):
     """Health check response"""
-    status: str
+    status: str  # healthy, unhealthy, degraded
     timestamp: str
+    components: Optional[Dict[str, ComponentHealth]] = None
+    version: str = "2.0.0"
 
