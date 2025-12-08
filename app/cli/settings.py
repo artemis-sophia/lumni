@@ -6,6 +6,10 @@ CLI commands for managing configuration settings
 from typing import Optional
 import typer
 import json
+import os
+import secrets
+import subprocess
+import sys
 from pathlib import Path
 from rich.table import Table
 from rich.console import Console
@@ -49,6 +53,97 @@ def save_config_json(config: dict):
     config_path = get_config_path()
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
+
+
+def get_env_path() -> Path:
+    """Get path to .env file"""
+    return Path(".env")
+
+
+def load_env_file() -> dict:
+    """Load .env file as dictionary"""
+    env_path = get_env_path()
+    env_vars = {}
+    if env_path.exists():
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    env_vars[key.strip()] = value.strip()
+    return env_vars
+
+
+def save_env_file(env_vars: dict):
+    """Save .env file from dictionary"""
+    env_path = get_env_path()
+    
+    # Read existing file to preserve comments and order
+    lines = []
+    if env_path.exists():
+        with open(env_path, 'r') as f:
+            lines = f.readlines()
+    
+    # Update or add variables
+    updated_keys = set()
+    new_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith('#') and '=' in stripped:
+            key = stripped.split('=', 1)[0].strip()
+            if key in env_vars:
+                new_lines.append(f"{key}={env_vars[key]}\n")
+                updated_keys.add(key)
+            else:
+                new_lines.append(line)
+        else:
+            new_lines.append(line)
+    
+    # Add new variables that weren't in the file
+    for key, value in env_vars.items():
+        if key not in updated_keys:
+            new_lines.append(f"{key}={value}\n")
+    
+    with open(env_path, 'w') as f:
+        f.writelines(new_lines)
+
+
+def update_env_var(key: str, value: str):
+    """Update a single environment variable in .env file"""
+    env_vars = load_env_file()
+    env_vars[key] = value
+    save_env_file(env_vars)
+
+
+def copy_to_clipboard(text: str) -> bool:
+    """Copy text to clipboard. Returns True if successful."""
+    try:
+        if sys.platform == "darwin":  # macOS
+            subprocess.run(["pbcopy"], input=text, text=True, check=True)
+            return True
+        elif sys.platform == "linux":  # Linux
+            # Try xclip first, then xsel
+            try:
+                subprocess.run(["xclip", "-selection", "clipboard"], input=text, text=True, check=True)
+                return True
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                try:
+                    subprocess.run(["xsel", "--clipboard", "--input"], input=text, text=True, check=True)
+                    return True
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    return False
+        elif sys.platform == "win32":  # Windows
+            subprocess.run(["clip"], input=text, text=True, check=True, shell=True)
+            return True
+        return False
+    except Exception:
+        return False
+
+
+def generate_unified_api_key() -> str:
+    """Generate a secure random API key"""
+    # Generate 32 bytes of random data and encode as hex (64 characters)
+    return secrets.token_urlsafe(32)
 
 
 def show_settings():
@@ -125,13 +220,14 @@ def menu():
                 title="Settings Menu",
                 text="Use ↑↓ arrow keys to navigate, Space to select, Enter to confirm:",
                 values=[
-                    ("show", "📋 Show All Settings"),
+                    ("show", "Show All Settings"),
                     ("provider", "Configure Provider"),
-                    ("fallback", "🔄 Configure Fallback"),
-                    ("monitoring", "📊 Configure Monitoring"),
-                    ("export", "💾 Export Configuration"),
-                    ("import", "📥 Import Configuration"),
-                    ("reset", "🔄 Reset Configuration"),
+                    ("unified-key", "Generate Unified API Key"),
+                    ("fallback", "Configure Fallback"),
+                    ("monitoring", "Configure Monitoring"),
+                    ("export", "Export Configuration"),
+                    ("import", "Import Configuration"),
+                    ("reset", "Reset Configuration"),
                     ("exit", "Exit"),
                 ],
             ).run()
@@ -146,6 +242,9 @@ def menu():
             
             elif result == "provider":
                 configure_provider_interactive()
+            
+            elif result == "unified-key":
+                generate_unified_key_interactive()
             
             elif result == "fallback":
                 configure_fallback_interactive()
@@ -201,7 +300,8 @@ def configure_provider_interactive():
                 values=[
                     ("toggle", f"Toggle Enabled (Currently: {'Enabled' if provider_config['enabled'] else 'Disabled'})"),
                     ("priority", f"Set Priority (Currently: {provider_config['priority']})"),
-                    ("back", "← Back to Main Menu"),
+                    ("api-key", "Set API Key"),
+                    ("back", "Back to Main Menu"),
                 ],
             ).run()
             
@@ -229,6 +329,48 @@ def configure_provider_interactive():
                         message_dialog(title="Success", text=f"Priority set to {priority}").run()
                     except ValueError:
                         message_dialog(title="Error", text="Invalid priority. Must be a number.").run()
+            
+            elif action == "api-key":
+                # Map provider names to environment variable names
+                env_var_map = {
+                    "groq": "GROQ_API_KEY",
+                    "deepseek": "DEEPSEEK_API_KEY",
+                    "github-copilot": "GITHUB_TOKEN",
+                    "gemini": "GEMINI_API_KEY",
+                    "mistral": "MISTRAL_API_KEY",
+                    "openrouter": "OPENROUTER_API_KEY",
+                }
+                
+                env_var = env_var_map.get(provider_name)
+                if not env_var:
+                    message_dialog(
+                        title="Error",
+                        text=f"API key configuration not available for provider: {provider_name}"
+                    ).run()
+                    continue
+                
+                # Get current API key if exists
+                env_vars = load_env_file()
+                current_key = env_vars.get(env_var, "")
+                
+                api_key = input_dialog(
+                    title=f"Set API Key for {provider_name}",
+                    text=f"Enter API key for {provider_name}:\n(Leave empty to keep current)",
+                    default=current_key if current_key else "",
+                ).run()
+                
+                if api_key is not None:
+                    if api_key:
+                        update_env_var(env_var, api_key)
+                        message_dialog(
+                            title="Success",
+                            text=f"API key for {provider_name} saved successfully"
+                        ).run()
+                    elif current_key:
+                        message_dialog(
+                            title="Info",
+                            text="API key unchanged"
+                        ).run()
         
     except Exception as e:
         message_dialog(title="Error", text=f"Failed to configure provider: {str(e)}").run()
@@ -252,7 +394,7 @@ def configure_fallback_interactive():
                 values=[
                     ("toggle", f"Toggle Enabled (Currently: {'Enabled' if fallback_config['enabled'] else 'Disabled'})"),
                     ("strategy", f"Set Strategy (Currently: {fallback_config['strategy']})"),
-                    ("back", "← Back to Main Menu"),
+                    ("back", "Back to Main Menu"),
                 ],
             ).run()
             
@@ -304,7 +446,7 @@ def configure_monitoring_interactive():
                     ("toggle", f"Toggle Enabled (Currently: {'Enabled' if monitoring_config['enabled'] else 'Disabled'})"),
                     ("track_usage", f"Track Usage (Currently: {'Enabled' if monitoring_config.get('trackUsage', True) else 'Disabled'})"),
                     ("threshold", f"Alert Threshold (Currently: {monitoring_config.get('alertThreshold', 0.8) * 100}%)"),
-                    ("back", "← Back to Main Menu"),
+                    ("back", "Back to Main Menu"),
                 ],
             ).run()
             
