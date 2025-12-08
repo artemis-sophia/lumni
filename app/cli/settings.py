@@ -376,6 +376,40 @@ def configure_provider_interactive():
         message_dialog(title="Error", text=f"Failed to configure provider: {str(e)}").run()
 
 
+def generate_unified_key_interactive():
+    """Interactive unified API key generation"""
+    try:
+        # Generate new key
+        new_key = generate_unified_api_key()
+        
+        # Copy to clipboard
+        clipboard_success = copy_to_clipboard(new_key)
+        
+        # Update config.json
+        config = load_config_json()
+        config["auth"]["unifiedApiKey"] = new_key
+        save_config_json(config)
+        
+        # Update .env
+        update_env_var("UNIFIED_API_KEY", new_key)
+        
+        # Display result
+        console.clear()
+        console.print(Panel.fit(
+            f"[bold green]Unified API Key Generated[/bold green]\n\n"
+            f"[bold]{new_key}[/bold]\n\n"
+            f"{'[green]Copied to clipboard![/green]' if clipboard_success else '[yellow]Could not copy to clipboard. Please copy manually.[/yellow]'}\n\n"
+            f"[dim]This key has been saved to config.json and .env[/dim]",
+            title="Success",
+            border_style="green"
+        ))
+        
+        input("\nPress Enter to continue...")
+        
+    except Exception as e:
+        message_dialog(title="Error", text=f"Failed to generate unified API key: {str(e)}").run()
+
+
 def configure_fallback_interactive():
     """Interactive fallback configuration"""
     try:
