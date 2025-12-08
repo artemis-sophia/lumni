@@ -117,7 +117,7 @@ For Python version, initialize the database:
 python3 -m alembic upgrade head
 ```
 
-This creates the necessary database tables for usage tracking, VPN endpoints, and provider state.
+This creates the necessary database tables for usage tracking and provider state.
 
 ### 2.6 Running Tests (Python)
 
@@ -269,21 +269,6 @@ curl -H "Authorization: Bearer your-unified-api-key" \
 
 ## Advanced Configuration
 
-### VPN Rotation (Optional)
-
-If you have VPN endpoints configured:
-
-1. Add VPN endpoints to the database or configure in `config.json`
-2. Enable VPN rotation:
-```json
-{
-  "vpn": {
-    "enabled": true,
-    "rotationInterval": 3600000
-  }
-}
-```
-
 ### Fallback Strategy
 
 Choose from three strategies:
@@ -364,13 +349,11 @@ When 80% of requests hit rate limits, you'll get alerts.
 ### Rate limit issues
 - Enable more providers for better fallback
 - Adjust rate limits in `config.json` to match actual limits
-- Consider enabling VPN rotation
 
 ## Next Steps
 
 - Integrate the gateway into your teaching materials
 - Set up monitoring dashboards
-- Configure VPN endpoints for extended usage
 - Add custom providers as needed
 
 ## Support

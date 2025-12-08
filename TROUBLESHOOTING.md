@@ -115,8 +115,7 @@ Error: listen EADDRINUSE: address already in use :::3000
 **Solutions:**
 1. Check rate limit configuration in `config.json` matches actual provider limits
 2. Enable more providers for better fallback
-3. Consider enabling VPN rotation
-4. Review usage statistics: `GET /api/v1/usage`
+3. Review usage statistics: `GET /api/v1/usage`
 
 ## Configuration Issues
 

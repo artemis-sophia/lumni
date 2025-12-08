@@ -53,11 +53,6 @@ This architecture redesign leverages **LiteLLM** for provider abstraction and ro
 │  │  - MMLU/HellaSwag/GSM8K Scoring                 │   │
 │  │  - Cost-Aware Optimization                      │   │
 │  └──────────────────────────────────────────────────┘   │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  VPN Manager                                     │   │
-│  │  - IP Rotation                                   │   │
-│  │  - Proxy Configuration                          │   │
-│  └──────────────────────────────────────────────────┘   │
 └────────────────────┬──────────────────────────────────────┘
                      │
                      ▼
@@ -207,7 +202,6 @@ Task Category → Benchmark Lookup → Model Ranking → LiteLLM Request
 
 **Integration Points:**
 - Model selection from Lumni layer
-- VPN proxy configuration
 - Portkey observability hooks
 
 ---
@@ -257,11 +251,7 @@ Task Category → Benchmark Lookup → Model Ranking → LiteLLM Request
    - Rank models by optimization score
    - Select best model
    ↓
-5. VPN Manager (if enabled)
-   - Get current VPN endpoint
-   - Configure proxy for request
-   ↓
-6. Portkey SDK (instrumentation)
+5. Portkey SDK (instrumentation)
    - Start request tracking
    - Log metadata
    ↓
@@ -271,10 +261,10 @@ Task Category → Benchmark Lookup → Model Ranking → LiteLLM Request
    - Check cache
    - Execute request
    ↓
-8. Provider API (via VPN if enabled)
+6. Provider API
    - Execute LLM request
    ↓
-9. LiteLLM Response Processing
+7. LiteLLM Response Processing
    - Parse response
    - Update rate limits
    - Cache if applicable
@@ -319,9 +309,6 @@ Task Category → Benchmark Lookup → Model Ranking → LiteLLM Request
     reason: string,
     benchmarkScore?: number
   },
-  
-  // VPN
-  vpnEndpoint?: string,
   
   // Portkey
   portkeyTraceId?: string
@@ -453,11 +440,6 @@ litellm_settings:
       }
     }
   },
-  "vpn": {
-    "enabled": true,
-    "rotationInterval": 3600000,
-    "endpoints": []
-  },
   "storage": {
     "type": "postgresql",
     "connectionString": "${DATABASE_URL}"
@@ -489,20 +471,6 @@ CREATE TABLE usage_metrics (
   latency_ms INTEGER,
   INDEX idx_provider_model (provider, model),
   INDEX idx_timestamp (timestamp)
-);
-```
-
-#### `vpn_endpoints`
-```sql
-CREATE TABLE vpn_endpoints (
-  id SERIAL PRIMARY KEY,
-  host VARCHAR(255) NOT NULL,
-  port INTEGER NOT NULL,
-  country VARCHAR(50),
-  provider VARCHAR(50),
-  active BOOLEAN DEFAULT true,
-  last_used TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
@@ -574,11 +542,6 @@ CREATE TABLE model_selections (
    - Use benchmark data for ranking
    - Integrate with LiteLLM router
 
-3. **VPN Manager Integration**
-   - Create LiteLLM proxy adapter
-   - Inject proxy config into LiteLLM requests
-   - Maintain rotation logic
-
 ### Phase 3: Infrastructure Upgrade (Week 3-4)
 
 1. **Database Migration**
@@ -645,7 +608,6 @@ CREATE TABLE model_selections (
 - **After:** Battle-tested LiteLLM infrastructure
 
 ### 4. Unique Features Preserved
-- VPN rotation (still unique)
 - Academic classification (still unique)
 - Benchmark-based selection (still unique)
 
@@ -661,10 +623,7 @@ CREATE TABLE model_selections (
 ### Risk 2: Portkey Cost
 **Mitigation:** Use free tier initially, monitor usage
 
-### Risk 3: VPN Integration Complexity
-**Mitigation:** Create adapter layer, test thoroughly
-
-### Risk 4: Data Migration
+### Risk 3: Data Migration
 **Mitigation:** Run parallel systems, migrate gradually
 
 ## Next Steps
