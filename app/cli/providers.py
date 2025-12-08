@@ -37,7 +37,7 @@ def list():
         table = create_table("Providers", ["Provider", "Enabled", "Priority", "Base URL"])
         
         for provider_name, provider_config in config.providers.items():
-            enabled = "✓" if provider_config.enabled else "✗"
+            enabled = "YES" if provider_config.enabled else "NO"
             priority = str(provider_config.priority)
             base_url = provider_config.base_url or "N/A"
             
@@ -192,7 +192,7 @@ def health():
             table.add_row(
                 provider_name,
                 status_color,
-                "✓" if enabled else "✗"
+                "YES" if enabled else "NO"
             )
         
         console.print(table)

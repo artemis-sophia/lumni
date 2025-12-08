@@ -72,7 +72,7 @@ def print_success(message: str):
 
 def print_error(message: str):
     """Print error message"""
-    console.print(f"[red]✗[/red] {message}")
+    console.print(f"[red]ERROR[/red] {message}")
 
 
 def print_warning(message: str):
