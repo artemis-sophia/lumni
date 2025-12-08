@@ -126,13 +126,13 @@ def menu():
                 text="Use ↑↓ arrow keys to navigate, Space to select, Enter to confirm:",
                 values=[
                     ("show", "📋 Show All Settings"),
-                    ("provider", "🔧 Configure Provider"),
+                    ("provider", "Configure Provider"),
                     ("fallback", "🔄 Configure Fallback"),
                     ("monitoring", "📊 Configure Monitoring"),
                     ("export", "💾 Export Configuration"),
                     ("import", "📥 Import Configuration"),
                     ("reset", "🔄 Reset Configuration"),
-                    ("exit", "❌ Exit"),
+                    ("exit", "Exit"),
                 ],
             ).run()
             

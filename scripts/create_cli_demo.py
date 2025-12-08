@@ -68,9 +68,9 @@ os.chdir(project_root)
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-print(f"✅ Working directory: {os.getcwd()}")
-print(f"✅ Project root: {project_root}")
-print(f"✅ Python path includes project root: {str(project_root) in sys.path}")
+print(f"Working directory: {os.getcwd()}")
+print(f"Project root: {project_root}")
+print(f"Python path includes project root: {str(project_root) in sys.path}")
 """))
     
     # Section 1: Usage Monitoring

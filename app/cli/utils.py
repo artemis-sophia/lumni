@@ -77,7 +77,7 @@ def print_error(message: str):
 
 def print_warning(message: str):
     """Print warning message"""
-    console.print(f"[yellow]⚠[/yellow] {message}")
+    console.print(f"[yellow]WARNING[/yellow] {message}")
 
 
 def print_info(message: str):
