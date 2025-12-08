@@ -23,8 +23,8 @@
       "baseUrl": "https://api.deepseek.com",
       "priority": 2,
       "rateLimit": {
-        "requestsPerMinute": 30,
-        "requestsPerDay": 1000
+        "requestsPerMinute": 100,
+        "requestsPerDay": 10000
       }
     },
     "groq": {

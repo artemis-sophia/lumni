@@ -188,25 +188,29 @@ curl -X POST http://localhost:3000/api/v1/chat \
 
 ---
 
-## OpenRouter (Requires Credits)
+## OpenRouter (Requires Credits in Balance)
 
 **Provider**: OpenRouter  
-**Access**: Account with credits (even for "free" models)  
-**Credits Required**: ⚠️ **YES** - Requires account credits even for free models  
-**Status**: **NOT TRULY FREE** - Excluded from this catalogue
+**Access**: Account with credits in balance (even for "free" models)  
+**Credits Required**: ⚠️ **YES** - Requires account credits in balance even for free models  
+**Status**: **NOT TRULY FREE** - Excluded from this catalogue (requires credits)
 
 ### Note on OpenRouter
 
 While OpenRouter offers models labeled as "free", they still require:
-- Account credits to be purchased (minimum $10)
-- Credits are not consumed for free models, but account must have credits
-- Rate limits: 50 requests/day without credits, 1,000 requests/day with $10+ credits
+- Account credits to be purchased (minimum $10 recommended)
+- Credits are **NOT consumed** for free models, but account **must have credits in balance**
+- Rate limits:
+  - **Without credits**: 50 requests/day, 20 requests/minute
+  - **With $10+ credits**: 1,000 requests/day, 20 requests/minute
 
-**Free models available** (but require credits):
-- `meta-llama/llama-3.1-8b-instruct`
-- `microsoft/phi-3-mini-4k-instruct`
+**Free models available** (require credits in balance, but credits not consumed):
+- `meta-llama/llama-3.1-8b-instruct` - Fast, general-purpose
+- `microsoft/phi-3-mini-4k-instruct` - Fast, compact model
+- `google/gemini-flash-1.5` - Fast, efficient model
+- `deepseek/deepseek-chat:free` - General-purpose with strong reasoning
 
-These are configured in the system but are **not included** in this free models catalogue as they require account credits.
+These are configured in the system but are **not included** in this free models catalogue as they require account credits in balance.
 
 ---
 

@@ -77,3 +77,6 @@ Thumbs.db
 node_modules/
 dist/
 
+# Development notes and thoughts
+thoughts/
+

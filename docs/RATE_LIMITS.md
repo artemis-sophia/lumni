@@ -58,40 +58,55 @@ Rate limits are enforced to ensure fair usage and system stability. Each provide
 
 ### DeepSeek
 
-**Status**: No Official Rate Limits
+**Status**: No Strict Rate Limits (Pay-as-You-Go API)
 
 **Rate Limits**:
-- **Official**: No explicit rate limits enforced
-- **Soft Limits**: May experience throttling during high traffic
-- **Best Practice**: Monitor response times and implement backoff if needed
+- **Official**: No explicit rate limits enforced for API access
+- **Soft Limits**: May experience throttling during high traffic periods
+- **Connection Timeout**: Requests not completed within 30 minutes will be closed
+- **Best Practice**: Monitor response times and implement exponential backoff if needed
 
 **Notes**:
-- DeepSeek offers competitive pricing with no rate limits
-- Off-peak pricing available (up to 75% discount)
-- Suitable for high-volume usage
+- **API Access**: Requires pay-as-you-go pricing (not free tier)
+- **Free Tier**: Only available for chat interface (chat.deepseek.com), not API access
+- **Pricing**: Competitive pay-as-you-go pricing with off-peak discounts (up to 75% off)
+- **Suitable for**: High-volume usage with proper error handling
+
+**API Pricing** (as of 2025):
+- Input tokens: ~$0.028 per 1M tokens (cache hit), ~$0.28 per 1M tokens (cache miss)
+- Output tokens: ~$0.42 per 1M tokens
 
 **Sources**:
-- DeepSeek API Documentation
-- Community reports and testing
+- [DeepSeek API Documentation](https://api-docs.deepseek.com/quick_start/rate_limit/)
+- [DeepSeek Pricing](https://api-docs.deepseek.com/quick_start/pricing/)
 
 ### OpenRouter
 
-**Status**: Free Tier Available, Paid Tiers Available
+**Status**: Free Models Available (Requires Credits in Balance)
 
-**Rate Limits**:
-- Varies by model and account tier
-- Free tier has lower limits
-- Paid tiers offer higher limits
-- Limits are per-model and per-account
+**Rate Limits for Free Models**:
+- **Without purchased credits** (< $10):
+  - 50 requests per day
+  - 20 requests per minute
+- **With $10+ credits in account**:
+  - 1,000 requests per day
+  - 20 requests per minute
+
+**Important Notes**:
+- ⚠️ **Free models require credits in account balance** (even though credits are not consumed)
+- Minimum recommended: $10 in credits for 1,000 requests/day limit
+- Free models include: `meta-llama/llama-3.1-8b-instruct`, `microsoft/phi-3-mini-4k-instruct`, `google/gemini-flash-1.5`, `deepseek/deepseek-chat:free`
+- Credits are NOT consumed when using free models, but account must have credits
 
 **Pricing Structure**:
-- Pay-per-use model
+- Pay-per-use model for paid models
 - Pricing varies by underlying model provider
 - Transparent pricing with cost per token
+- Free models: $0 cost (but require credits in balance)
 
 **Sources**:
-- OpenRouter API Documentation
-- Pricing page and community resources
+- [OpenRouter API Documentation](https://openrouter.ai/docs/api-reference/limits)
+- [OpenRouter Rate Limits Guide](https://openrouter.zendesk.com/hc/en-us/articles/39501163636379-OpenRouter-Rate-Limits-What-You-Need-to-Know)
 
 ### Google Gemini
 

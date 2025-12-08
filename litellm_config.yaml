@@ -134,8 +134,11 @@ model_list:
       api_key: os.environ/GITHUB_TOKEN
       api_base: https://models.github.ai/v1
 
-  # OpenRouter Models (Free Tier Only - Note: OpenRouter requires account credits even for free models)
-  # Free models available: google/gemini-flash-1.5, microsoft/phi-3-mini-4k-instruct, meta-llama/llama-3.1-8b-instruct
+  # OpenRouter Models (Free Tier - Requires Credits in Balance)
+  # Note: OpenRouter requires account credits ($10+ recommended) even for free models
+  # With $10+ credits: 1,000 requests/day, 20 requests/minute
+  # Without credits: 50 requests/day, 20 requests/minute
+  # Free models (credits not consumed, but account must have credits):
   - model_name: openrouter-llama-3.1-8b
     litellm_params:
       model: openrouter/meta-llama/llama-3.1-8b-instruct
@@ -144,6 +147,16 @@ model_list:
   - model_name: openrouter-phi-3-mini
     litellm_params:
       model: openrouter/microsoft/phi-3-mini-4k-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+  
+  - model_name: openrouter-gemini-flash
+    litellm_params:
+      model: openrouter/google/gemini-flash-1.5
+      api_key: os.environ/OPENROUTER_API_KEY
+  
+  - model_name: openrouter-deepseek-chat-free
+    litellm_params:
+      model: openrouter/deepseek/deepseek-chat:free
       api_key: os.environ/OPENROUTER_API_KEY
 
 # Router Settings
@@ -158,6 +171,8 @@ router_settings:
     - github-gpt-3.5-turbo
     - openrouter-llama-3.1-8b
     - openrouter-phi-3-mini
+    - openrouter-gemini-flash
+    - openrouter-deepseek-chat-free
 
 # LiteLLM General Settings
 litellm_settings:

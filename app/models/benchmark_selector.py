@@ -33,19 +33,30 @@ class BenchmarkSelector:
         """Select the best model for a given request"""
         # If provider and model are explicitly specified, use them
         if request.provider and request.model:
-            # Validate OpenRouter only uses free models
+            # Validate OpenRouter only uses free models (requires credits in balance)
             if request.provider == "openrouter":
                 free_models = [
                     "meta-llama/llama-3.1-8b-instruct",
                     "microsoft/phi-3-mini-4k-instruct",
+                    "google/gemini-flash-1.5",
+                    "deepseek/deepseek-chat:free",
                     "openrouter/meta-llama/llama-3.1-8b-instruct",
-                    "openrouter/microsoft/phi-3-mini-4k-instruct"
+                    "openrouter/microsoft/phi-3-mini-4k-instruct",
+                    "openrouter/google/gemini-flash-1.5",
+                    "openrouter/deepseek/deepseek-chat:free"
                 ]
                 model_check = request.model.replace("openrouter/", "")
-                if not any(free_model in model_check for free_model in ["llama-3.1-8b-instruct", "phi-3-mini-4k-instruct"]):
+                allowed_patterns = [
+                    "llama-3.1-8b-instruct",
+                    "phi-3-mini-4k-instruct",
+                    "gemini-flash-1.5",
+                    "deepseek-chat:free"
+                ]
+                if not any(pattern in model_check for pattern in allowed_patterns):
                     raise ValueError(
-                        f"OpenRouter can only use free models. Allowed: meta-llama/llama-3.1-8b-instruct, "
-                        f"microsoft/phi-3-mini-4k-instruct. Got: {request.model}"
+                        f"OpenRouter can only use free models (requires credits in balance). "
+                        f"Allowed: meta-llama/llama-3.1-8b-instruct, microsoft/phi-3-mini-4k-instruct, "
+                        f"google/gemini-flash-1.5, deepseek/deepseek-chat:free. Got: {request.model}"
                     )
             
             # Format model name with provider prefix for LiteLLM

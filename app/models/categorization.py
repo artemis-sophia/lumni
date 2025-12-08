@@ -46,10 +46,13 @@ MODEL_CATEGORIZATION: dict[str, ModelMetadata] = {
     'deepseek-chat': ModelMetadata('deepseek', 'deepseek-chat', 'fast'),
     'deepseek-coder': ModelMetadata('deepseek', 'deepseek-coder', 'fast'),
 
-    # OpenRouter (Free Tier Only - Note: OpenRouter requires account credits even for free models)
-    # Free models: meta-llama/llama-3.1-8b-instruct, microsoft/phi-3-mini-4k-instruct
+    # OpenRouter (Free Tier - Requires Credits in Balance)
+    # Note: OpenRouter requires account credits ($10+ recommended) even for free models
+    # Free models (credits not consumed, but account must have credits):
     'meta-llama/llama-3.1-8b-instruct': ModelMetadata('openrouter', 'meta-llama/llama-3.1-8b-instruct', 'fast'),
     'microsoft/phi-3-mini-4k-instruct': ModelMetadata('openrouter', 'microsoft/phi-3-mini-4k-instruct', 'fast'),
+    'google/gemini-flash-1.5': ModelMetadata('openrouter', 'google/gemini-flash-1.5', 'fast'),
+    'deepseek/deepseek-chat:free': ModelMetadata('openrouter', 'deepseek/deepseek-chat:free', 'fast'),
 
     # Google Gemini (Free Tier - No Credits Required)
     # All Gemini models are free with rate limits - no credits needed
