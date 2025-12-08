@@ -221,7 +221,6 @@ These are configured in the system but are **not included** in this free models 
 | Google Gemini | 15-60 (varies) | Varies | Depends on model |
 | GitHub Models API | 60 | 5,000 | Pro account limits |
 | Groq | 600 | 10,000 | Free tier limits |
-| DeepSeek | No official limit | No official limit | May throttle during high traffic |
 
 ---
 
