@@ -87,167 +87,258 @@ else
 fi
 echo ""
 
-# Provider selection menu
-echo "=========================================="
-echo "Provider Configuration"
-echo "=========================================="
-echo ""
-echo "Select which providers you want to configure (enter numbers separated by spaces, or press Enter to skip):"
-echo ""
-echo "1) Groq (Free tier: 600 RPM)"
-echo "2) DeepSeek (Pay-as-you-go API)"
-echo "3) GitHub Copilot (Requires GitHub Pro/Education)"
-echo "4) Google Gemini (Free tier available)"
-echo "5) Mistral AI (Free tier or student plan)"
-echo "6) OpenRouter (Free models require credits in balance)"
-echo ""
-
-read -p "Enter provider numbers (e.g., 1 3 4): " provider_choices
-
-# Load existing .env values
+# Load existing .env values to check what's already set
 if [ -f ".env" ]; then
+    # Source .env file safely (ignore errors for missing vars)
+    set -a
     source .env 2>/dev/null || true
+    set +a
 fi
 
-# Process provider selections
-SELECTED_PROVIDERS=()
-for choice in $provider_choices; do
-    case $choice in
-        1) SELECTED_PROVIDERS+=("groq") ;;
-        2) SELECTED_PROVIDERS+=("deepseek") ;;
-        3) SELECTED_PROVIDERS+=("github") ;;
-        4) SELECTED_PROVIDERS+=("gemini") ;;
-        5) SELECTED_PROVIDERS+=("mistral") ;;
-        6) SELECTED_PROVIDERS+=("openrouter") ;;
-    esac
+# Function to check if an API key is set and valid
+check_api_key() {
+    local key_name=$1
+    local key_value=$(eval echo \$$key_name)
+    
+    if [ -n "$key_value" ] && [ "$key_value" != "" ] && \
+       [ "$key_value" != "your-${key_name,,}-key-here" ] && \
+       [ "$key_value" != "your_${key_name,,}_key_here" ] && \
+       [ "$key_value" != "your-${key_name,,}" ] && \
+       [ "$key_value" != "your_${key_name,,}" ]; then
+        return 0  # Key exists and is valid
+    else
+        return 1  # Key is missing or placeholder
+    fi
+}
+
+# Check which providers already have API keys configured
+AVAILABLE_PROVIDERS=()
+PROVIDER_STATUS=()
+
+if check_api_key "GROQ_API_KEY"; then
+    AVAILABLE_PROVIDERS+=("groq")
+    PROVIDER_STATUS+=("groq:configured")
+    echo "Groq: API key already configured"
+else
+    PROVIDER_STATUS+=("groq:missing")
+fi
+
+if check_api_key "DEEPSEEK_API_KEY"; then
+    AVAILABLE_PROVIDERS+=("deepseek")
+    PROVIDER_STATUS+=("deepseek:configured")
+    echo "DeepSeek: API key already configured"
+else
+    PROVIDER_STATUS+=("deepseek:missing")
+fi
+
+if check_api_key "GITHUB_TOKEN"; then
+    AVAILABLE_PROVIDERS+=("github")
+    PROVIDER_STATUS+=("github:configured")
+    echo "GitHub Copilot: API key already configured"
+else
+    PROVIDER_STATUS+=("github:missing")
+fi
+
+if check_api_key "GEMINI_API_KEY"; then
+    AVAILABLE_PROVIDERS+=("gemini")
+    PROVIDER_STATUS+=("gemini:configured")
+    echo "Google Gemini: API key already configured"
+else
+    PROVIDER_STATUS+=("gemini:missing")
+fi
+
+if check_api_key "MISTRAL_API_KEY"; then
+    AVAILABLE_PROVIDERS+=("mistral")
+    PROVIDER_STATUS+=("mistral:configured")
+    echo "Mistral AI: API key already configured"
+else
+    PROVIDER_STATUS+=("mistral:missing")
+fi
+
+if check_api_key "OPENROUTER_API_KEY"; then
+    AVAILABLE_PROVIDERS+=("openrouter")
+    PROVIDER_STATUS+=("openrouter:configured")
+    echo "OpenRouter: API key already configured"
+else
+    PROVIDER_STATUS+=("openrouter:missing")
+fi
+
+echo ""
+
+# Provider selection menu - only show providers that need configuration
+NEEDS_CONFIG=()
+for status in "${PROVIDER_STATUS[@]}"; do
+    provider=$(echo "$status" | cut -d':' -f1)
+    state=$(echo "$status" | cut -d':' -f2)
+    if [ "$state" = "missing" ]; then
+        NEEDS_CONFIG+=("$provider")
+    fi
 done
 
-# Prompt for API keys for selected providers
-if [ ${#SELECTED_PROVIDERS[@]} -gt 0 ]; then
+if [ ${#NEEDS_CONFIG[@]} -eq 0 ]; then
+    echo "All providers are already configured. Skipping provider setup."
     echo ""
+else
     echo "=========================================="
-    echo "API Key Configuration"
+    echo "Provider Configuration"
     echo "=========================================="
+    echo ""
+    echo "The following providers need API keys configured:"
     echo ""
     
-    for provider in "${SELECTED_PROVIDERS[@]}"; do
+    provider_num=1
+    provider_map=()
+    for provider in "${NEEDS_CONFIG[@]}"; do
         case $provider in
             groq)
-                current_key="${GROQ_API_KEY:-}"
-                if [ -n "$current_key" ] && [ "$current_key" != "" ] && [ "$current_key" != "your_groq_key_here" ]; then
-                    read -p "Groq API Key [press Enter to keep current: ${current_key:0:10}...]: " api_key
-                    [ -z "$api_key" ] && api_key="$current_key"
-                else
-                    read -p "Groq API Key: " api_key
-                fi
-                if [ -n "$api_key" ]; then
-                    if grep -q "^GROQ_API_KEY=" .env 2>/dev/null; then
-                        sed -i.bak "s|^GROQ_API_KEY=.*|GROQ_API_KEY=$api_key|" .env && rm -f .env.bak
-                    else
-                        echo "GROQ_API_KEY=$api_key" >> .env
-                    fi
-                    echo "Groq API key saved"
-                fi
+                echo "$provider_num) Groq (Free tier: 600 RPM)"
+                provider_map+=("groq")
                 ;;
             deepseek)
-                current_key="${DEEPSEEK_API_KEY:-}"
-                if [ -n "$current_key" ] && [ "$current_key" != "" ] && [ "$current_key" != "your_deepseek_key_here" ]; then
-                    read -p "DeepSeek API Key [press Enter to keep current: ${current_key:0:10}...]: " api_key
-                    [ -z "$api_key" ] && api_key="$current_key"
-                else
-                    read -p "DeepSeek API Key: " api_key
-                fi
-                if [ -n "$api_key" ]; then
-                    if grep -q "^DEEPSEEK_API_KEY=" .env 2>/dev/null; then
-                        sed -i.bak "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$api_key|" .env && rm -f .env.bak
-                    else
-                        echo "DEEPSEEK_API_KEY=$api_key" >> .env
-                    fi
-                    echo "DeepSeek API key saved"
-                fi
+                echo "$provider_num) DeepSeek (Pay-as-you-go API)"
+                provider_map+=("deepseek")
                 ;;
             github)
-                current_key="${GITHUB_TOKEN:-}"
-                if [ -n "$current_key" ] && [ "$current_key" != "" ] && [ "$current_key" != "your_github_token_here" ]; then
-                    read -p "GitHub Token [press Enter to keep current: ${current_key:0:10}...]: " api_key
-                    [ -z "$api_key" ] && api_key="$current_key"
-                else
-                    read -p "GitHub Token: " api_key
-                fi
-                if [ -n "$api_key" ]; then
-                    if grep -q "^GITHUB_TOKEN=" .env 2>/dev/null; then
-                        sed -i.bak "s|^GITHUB_TOKEN=.*|GITHUB_TOKEN=$api_key|" .env && rm -f .env.bak
-                    else
-                        echo "GITHUB_TOKEN=$api_key" >> .env
-                    fi
-                    echo "GitHub token saved"
-                fi
+                echo "$provider_num) GitHub Copilot (Requires GitHub Pro/Education)"
+                provider_map+=("github")
                 ;;
             gemini)
-                current_key="${GEMINI_API_KEY:-}"
-                if [ -n "$current_key" ] && [ "$current_key" != "" ] && [ "$current_key" != "your_gemini_key_here" ]; then
-                    read -p "Google Gemini API Key [press Enter to keep current: ${current_key:0:10}...]: " api_key
-                    [ -z "$api_key" ] && api_key="$current_key"
-                else
-                    read -p "Google Gemini API Key: " api_key
-                fi
-                if [ -n "$api_key" ]; then
-                    if grep -q "^GEMINI_API_KEY=" .env 2>/dev/null; then
-                        sed -i.bak "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=$api_key|" .env && rm -f .env.bak
-                    else
-                        echo "GEMINI_API_KEY=$api_key" >> .env
-                    fi
-                    echo "Gemini API key saved"
-                fi
+                echo "$provider_num) Google Gemini (Free tier available)"
+                provider_map+=("gemini")
                 ;;
             mistral)
-                current_key="${MISTRAL_API_KEY:-}"
-                if [ -n "$current_key" ] && [ "$current_key" != "" ] && [ "$current_key" != "your_mistral_key_here" ]; then
-                    read -p "Mistral API Key [press Enter to keep current: ${current_key:0:10}...]: " api_key
-                    [ -z "$api_key" ] && api_key="$current_key"
-                else
-                    read -p "Mistral API Key: " api_key
-                fi
-                if [ -n "$api_key" ]; then
-                    if grep -q "^MISTRAL_API_KEY=" .env 2>/dev/null; then
-                        sed -i.bak "s|^MISTRAL_API_KEY=.*|MISTRAL_API_KEY=$api_key|" .env && rm -f .env.bak
-                    else
-                        echo "MISTRAL_API_KEY=$api_key" >> .env
-                    fi
-                    echo "Mistral API key saved"
-                fi
+                echo "$provider_num) Mistral AI (Free tier or student plan)"
+                provider_map+=("mistral")
                 ;;
             openrouter)
-                current_key="${OPENROUTER_API_KEY:-}"
-                if [ -n "$current_key" ] && [ "$current_key" != "" ] && [ "$current_key" != "your_openrouter_key_here" ]; then
-                    read -p "OpenRouter API Key [press Enter to keep current: ${current_key:0:10}...]: " api_key
-                    [ -z "$api_key" ] && api_key="$current_key"
-                else
-                    read -p "OpenRouter API Key: " api_key
-                fi
-                if [ -n "$api_key" ]; then
-                    if grep -q "^OPENROUTER_API_KEY=" .env 2>/dev/null; then
-                        sed -i.bak "s|^OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$api_key|" .env && rm -f .env.bak
-                    else
-                        echo "OPENROUTER_API_KEY=$api_key" >> .env
-                    fi
-                    echo "OpenRouter API key saved"
-                fi
+                echo "$provider_num) OpenRouter (Free models require credits in balance)"
+                provider_map+=("openrouter")
                 ;;
         esac
+        ((provider_num++))
     done
     echo ""
+    echo "Enter provider numbers separated by spaces to configure (or press Enter to skip):"
+    read -p "> " provider_choices
+    
+    # Process provider selections
+    SELECTED_PROVIDERS=()
+    if [ -n "$provider_choices" ]; then
+        for choice in $provider_choices; do
+            idx=$((choice - 1))
+            if [ $idx -ge 0 ] && [ $idx -lt ${#provider_map[@]} ]; then
+                SELECTED_PROVIDERS+=("${provider_map[$idx]}")
+            fi
+        done
+    fi
+    
+    # Prompt for API keys for selected providers
+    if [ ${#SELECTED_PROVIDERS[@]} -gt 0 ]; then
+        echo ""
+        echo "=========================================="
+        echo "API Key Configuration"
+        echo "=========================================="
+        echo ""
+        
+        for provider in "${SELECTED_PROVIDERS[@]}"; do
+            case $provider in
+                groq)
+                    read -p "Groq API Key: " api_key
+                    if [ -n "$api_key" ]; then
+                        if grep -q "^GROQ_API_KEY=" .env 2>/dev/null; then
+                            sed -i.bak "s|^GROQ_API_KEY=.*|GROQ_API_KEY=$api_key|" .env && rm -f .env.bak
+                        else
+                            echo "GROQ_API_KEY=$api_key" >> .env
+                        fi
+                        echo "Groq API key saved"
+                    fi
+                    ;;
+                deepseek)
+                    read -p "DeepSeek API Key: " api_key
+                    if [ -n "$api_key" ]; then
+                        if grep -q "^DEEPSEEK_API_KEY=" .env 2>/dev/null; then
+                            sed -i.bak "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$api_key|" .env && rm -f .env.bak
+                        else
+                            echo "DEEPSEEK_API_KEY=$api_key" >> .env
+                        fi
+                        echo "DeepSeek API key saved"
+                    fi
+                    ;;
+                github)
+                    read -p "GitHub Token: " api_key
+                    if [ -n "$api_key" ]; then
+                        if grep -q "^GITHUB_TOKEN=" .env 2>/dev/null; then
+                            sed -i.bak "s|^GITHUB_TOKEN=.*|GITHUB_TOKEN=$api_key|" .env && rm -f .env.bak
+                        else
+                            echo "GITHUB_TOKEN=$api_key" >> .env
+                        fi
+                        echo "GitHub token saved"
+                    fi
+                    ;;
+                gemini)
+                    read -p "Google Gemini API Key: " api_key
+                    if [ -n "$api_key" ]; then
+                        if grep -q "^GEMINI_API_KEY=" .env 2>/dev/null; then
+                            sed -i.bak "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=$api_key|" .env && rm -f .env.bak
+                        else
+                            echo "GEMINI_API_KEY=$api_key" >> .env
+                        fi
+                        echo "Gemini API key saved"
+                    fi
+                    ;;
+                mistral)
+                    read -p "Mistral API Key: " api_key
+                    if [ -n "$api_key" ]; then
+                        if grep -q "^MISTRAL_API_KEY=" .env 2>/dev/null; then
+                            sed -i.bak "s|^MISTRAL_API_KEY=.*|MISTRAL_API_KEY=$api_key|" .env && rm -f .env.bak
+                        else
+                            echo "MISTRAL_API_KEY=$api_key" >> .env
+                        fi
+                        echo "Mistral API key saved"
+                    fi
+                    ;;
+                openrouter)
+                    read -p "OpenRouter API Key: " api_key
+                    if [ -n "$api_key" ]; then
+                        if grep -q "^OPENROUTER_API_KEY=" .env 2>/dev/null; then
+                            sed -i.bak "s|^OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$api_key|" .env && rm -f .env.bak
+                        else
+                            echo "OPENROUTER_API_KEY=$api_key" >> .env
+                        fi
+                        echo "OpenRouter API key saved"
+                    fi
+                    ;;
+            esac
+        done
+        echo ""
+    fi
 fi
 
-# Prompt for unified API key
+# Check and prompt for unified API key
 echo "=========================================="
 echo "Unified API Key Configuration"
 echo "=========================================="
 echo ""
+
+# Reload .env to get updated values
+if [ -f ".env" ]; then
+    set -a
+    source .env 2>/dev/null || true
+    set +a
+fi
+
 current_unified_key="${UNIFIED_API_KEY:-}"
-if [ -n "$current_unified_key" ] && [ "$current_unified_key" != "your-unified-api-key-here" ]; then
-    read -p "Unified API Key [press Enter to keep current: ${current_unified_key:0:10}...]: " unified_key
-    [ -z "$unified_key" ] && unified_key="$current_unified_key"
+
+# Check if unified API key is already set and valid
+if check_api_key "UNIFIED_API_KEY"; then
+    echo "Unified API key is already configured: ${current_unified_key:0:10}..."
+    read -p "Do you want to update it? (y/N): " update_choice
+    if [ "$update_choice" != "y" ] && [ "$update_choice" != "Y" ]; then
+        unified_key="$current_unified_key"
+        echo "Keeping existing unified API key"
+    else
+        read -p "Unified API Key (for client authentication): " unified_key
+    fi
 else
     read -p "Unified API Key (for client authentication): " unified_key
 fi
@@ -307,6 +398,15 @@ echo ""
 echo "IMPORTANT: Review your configuration:"
 echo "  - config.json: Check provider settings and unified API key"
 echo "  - .env: Verify all API keys are set correctly"
+echo ""
+echo "Configured providers:"
+for status in "${PROVIDER_STATUS[@]}"; do
+    provider=$(echo "$status" | cut -d':' -f1)
+    state=$(echo "$status" | cut -d':' -f2)
+    if [ "$state" = "configured" ]; then
+        echo "  - $provider: configured"
+    fi
+done
 echo ""
 echo "To start the gateway:"
 if command -v poetry &> /dev/null; then
