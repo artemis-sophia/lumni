@@ -12,7 +12,9 @@ from rich.panel import Panel
 from app.cli.utils import (
     create_table,
     print_error,
-    console
+    console,
+    should_output_json,
+    output_json,
 )
 from app.models.categorization import (
     MODEL_CATEGORIZATION,
@@ -23,13 +25,20 @@ from app.models.categorization import (
 app = typer.Typer(name="models", help="Model management commands")
 
 
-@app.command()
+@app.command("list", "ls")
 def list(
     provider: Optional[str] = typer.Option(None, "--provider", "-p", help="Filter by provider"),
     category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category (fast/powerful)"),
     free_only: bool = typer.Option(False, "--free-only", help="Show only free models"),
 ):
-    """List all available models"""
+    """List all available models
+    
+    Examples:
+        lumni models list                      # List all models
+        lumni models list --provider openai    # Filter by provider
+        lumni models list --free-only          # Show only free models
+        lumni models list --json               # Output as JSON
+    """
     try:
         # Create a copy of the list to avoid any mutation issues
         models = [m for m in MODEL_CATEGORIZATION.values()]
@@ -47,17 +56,36 @@ def list(
             models = [m for m in models if m.provider in free_providers]
         
         if not models:
-            console.print("[yellow]No models found matching criteria[/yellow]")
+            if should_output_json():
+                output_json({"models": [], "total": 0})
+            else:
+                console.print("[yellow]No models found matching criteria[/yellow]")
             return
         
+        # Build data structure
+        models_data = []
+        for model_meta in sorted(models, key=lambda x: (x.provider, x.model)):
+            models_data.append({
+                "provider": model_meta.provider,
+                "model": model_meta.model,
+                "category": model_meta.category,
+                "benchmark_score": model_meta.benchmark_score if model_meta.benchmark_score else None,
+            })
+        
+        # Output JSON if requested
+        if should_output_json():
+            output_json({"models": models_data, "total": len(models_data)})
+            return
+        
+        # Otherwise output as table
         table = create_table("Available Models", ["Provider", "Model", "Category", "Benchmark Score"])
         
-        for model_meta in sorted(models, key=lambda x: (x.provider, x.model)):
-            benchmark = f"{model_meta.benchmark_score:.2f}" if model_meta.benchmark_score else "N/A"
+        for model_data in models_data:
+            benchmark = f"{model_data['benchmark_score']:.2f}" if model_data['benchmark_score'] else "N/A"
             table.add_row(
-                model_meta.provider,
-                model_meta.model,
-                model_meta.category,
+                model_data["provider"],
+                model_data["model"],
+                model_data["category"],
                 benchmark
             )
         
@@ -72,21 +100,44 @@ def list(
 def provider(
     provider_name: str = typer.Argument(..., help="Provider name"),
 ):
-    """List models for a specific provider"""
+    """List models for a specific provider
+    
+    Examples:
+        lumni models provider openai          # List OpenAI models
+        lumni models provider openai --json  # Output as JSON
+    """
     try:
         models = get_models_by_provider(provider_name)
         
         if not models:
-            console.print(f"[yellow]No models found for provider '{provider_name}'[/yellow]")
+            if should_output_json():
+                output_json({"provider": provider_name, "models": [], "total": 0})
+            else:
+                console.print(f"[yellow]No models found for provider '{provider_name}'[/yellow]")
             return
         
+        # Build data structure
+        models_data = []
+        for model_meta in sorted(models, key=lambda x: x.model):
+            models_data.append({
+                "model": model_meta.model,
+                "category": model_meta.category,
+                "benchmark_score": model_meta.benchmark_score if model_meta.benchmark_score else None,
+            })
+        
+        # Output JSON if requested
+        if should_output_json():
+            output_json({"provider": provider_name, "models": models_data, "total": len(models_data)})
+            return
+        
+        # Otherwise output as table
         table = create_table(f"Models for {provider_name}", ["Model", "Category", "Benchmark Score"])
         
-        for model_meta in sorted(models, key=lambda x: x.model):
-            benchmark = f"{model_meta.benchmark_score:.2f}" if model_meta.benchmark_score else "N/A"
+        for model_data in models_data:
+            benchmark = f"{model_data['benchmark_score']:.2f}" if model_data['benchmark_score'] else "N/A"
             table.add_row(
-                model_meta.model,
-                model_meta.category,
+                model_data["model"],
+                model_data["category"],
                 benchmark
             )
         
@@ -102,7 +153,12 @@ def show(
     provider_name: str = typer.Argument(..., help="Provider name"),
     model_name: str = typer.Argument(..., help="Model name"),
 ):
-    """Show detailed information for a specific model"""
+    """Show detailed information for a specific model
+    
+    Examples:
+        lumni models show openai gpt-4      # Show details for GPT-4
+        lumni models show openai gpt-4 --json  # Output as JSON
+    """
     try:
         # Find model in categorization
         found = None
@@ -112,9 +168,27 @@ def show(
                 break
         
         if not found:
-            console.print(f"[yellow]Model '{provider_name}/{model_name}' not found[/yellow]")
+            if should_output_json():
+                output_json({"error": f"Model '{provider_name}/{model_name}' not found"})
+            else:
+                console.print(f"[yellow]Model '{provider_name}/{model_name}' not found[/yellow]")
+                print_info("Use 'lumni models list' to see available models")
             return
         
+        # Build data structure
+        model_data = {
+            "provider": found.provider,
+            "model": found.model,
+            "category": found.category,
+            "benchmark_score": found.benchmark_score if found.benchmark_score else None,
+        }
+        
+        # Output JSON if requested
+        if should_output_json():
+            output_json(model_data)
+            return
+        
+        # Otherwise output as table
         table = create_table(f"Model Details: {provider_name}/{model_name}", ["Property", "Value"])
         table.add_row("Provider", found.provider)
         table.add_row("Model", found.model)

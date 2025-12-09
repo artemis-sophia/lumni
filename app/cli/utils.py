@@ -3,18 +3,31 @@ CLI Utilities
 Shared utilities for CLI commands
 """
 
-from typing import Optional
+import os
+import signal
+import subprocess
+import json
+from typing import Optional, Any, Dict, List
+from pathlib import Path
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from rich.table import Table
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
+from contextvars import ContextVar
 
 from app.storage.database import get_db, init_db
 from app.config import load_config
 
 console = Console()
+
+# Import CLI context from main (will be set by main callback)
+try:
+    from app.cli.main import cli_context
+except ImportError:
+    # Fallback if context not available
+    cli_context: ContextVar = None
 
 
 def get_db_session() -> Session:
@@ -70,9 +83,11 @@ def print_success(message: str):
     console.print(f"[green]✓[/green] {message}")
 
 
-def print_error(message: str):
-    """Print error message"""
+def print_error(message: str, suggestion: Optional[str] = None):
+    """Print error message with optional suggestion"""
     console.print(f"[red]ERROR[/red] {message}")
+    if suggestion:
+        console.print(f"[dim]💡 {suggestion}[/dim]")
 
 
 def print_warning(message: str):
@@ -232,4 +247,246 @@ def show_breadcrumb(context: MenuContext):
     if context.breadcrumbs:
         breadcrumb = " > ".join(context.breadcrumbs)
         console.print(f"[dim]📍 {breadcrumb}[/dim]\n")
+
+
+# PID file management utilities
+def get_pid_file_path() -> Path:
+    """Get path to PID file (prefer project-local, fallback to home directory)"""
+    # Try project-local first
+    project_pid = Path(".lumni") / "server.pid"
+    if Path.cwd().name != "lumni" or not Path("config.json").exists():
+        # If not in project root, use home directory
+        home_pid = Path.home() / ".lumni" / "server.pid"
+        home_pid.parent.mkdir(parents=True, exist_ok=True)
+        return home_pid
+    
+    # Create .lumni directory if it doesn't exist
+    project_pid.parent.mkdir(parents=True, exist_ok=True)
+    return project_pid
+
+
+def save_server_pid(pid: int):
+    """Save server PID to file"""
+    pid_file = get_pid_file_path()
+    try:
+        pid_file.write_text(str(pid))
+    except Exception as e:
+        print_error(f"Failed to save PID file: {e}")
+
+
+def get_server_pid() -> Optional[int]:
+    """Read server PID from file"""
+    pid_file = get_pid_file_path()
+    if not pid_file.exists():
+        return None
+    
+    try:
+        pid_str = pid_file.read_text().strip()
+        return int(pid_str)
+    except (ValueError, FileNotFoundError):
+        return None
+
+
+def is_server_running(pid: Optional[int] = None) -> bool:
+    """Check if server process is running"""
+    if pid is None:
+        pid = get_server_pid()
+    
+    if pid is None:
+        return False
+    
+    try:
+        # Send signal 0 (no-op) to check if process exists
+        os.kill(pid, 0)
+        return True
+    except (OSError, ProcessLookupError):
+        # Process doesn't exist
+        return False
+
+
+def kill_server_process(pid: Optional[int] = None, force: bool = False) -> bool:
+    """Stop server process gracefully (or forcefully)"""
+    if pid is None:
+        pid = get_server_pid()
+    
+    if pid is None:
+        return False
+    
+    if not is_server_running(pid):
+        # Clean up stale PID file
+        pid_file = get_pid_file_path()
+        if pid_file.exists():
+            pid_file.unlink()
+        return False
+    
+    try:
+        if force:
+            # Force kill
+            os.kill(pid, signal.SIGKILL)
+        else:
+            # Graceful shutdown
+            os.kill(pid, signal.SIGTERM)
+        
+        # Wait a bit for process to terminate
+        import time
+        for _ in range(10):  # Wait up to 1 second
+            time.sleep(0.1)
+            if not is_server_running(pid):
+                break
+        
+        # If still running and force wasn't used, try force kill
+        if is_server_running(pid) and not force:
+            os.kill(pid, signal.SIGKILL)
+        
+        # Clean up PID file
+        pid_file = get_pid_file_path()
+        if pid_file.exists():
+            pid_file.unlink()
+        
+        return True
+    except (OSError, ProcessLookupError) as e:
+        print_error(f"Failed to stop server: {e}")
+        return False
+
+
+# Progress Indicators
+
+def create_progress_bar(total: int = 100, description: str = "Processing"):
+    """Create a progress bar using Rich"""
+    from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
+    
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        console=console,
+    )
+    return progress
+
+
+def create_spinner(message: str = "Processing..."):
+    """Create a spinner for indeterminate operations"""
+    from rich.progress import SpinnerColumn, TextColumn
+    from rich.console import Group
+    
+    return Group(
+        SpinnerColumn(),
+        TextColumn(message),
+    )
+
+
+# Input Validation
+
+def validate_port(port: int) -> int:
+    """Validate port number (1-65535)"""
+    if not (1 <= port <= 65535):
+        raise typer.BadParameter(f"Port must be between 1 and 65535, got {port}")
+    return port
+
+
+def validate_priority(priority: int) -> int:
+    """Validate priority value (must be positive integer)"""
+    if priority < 0:
+        raise typer.BadParameter(f"Priority must be a positive integer, got {priority}")
+    return priority
+
+
+def validate_time_window(hours: int) -> int:
+    """Validate time window (must be positive)"""
+    if hours <= 0:
+        raise typer.BadParameter(f"Time window must be positive, got {hours}")
+    return hours
+
+
+def validate_threshold(threshold: float) -> float:
+    """Validate threshold value (0.0-1.0)"""
+    if not (0.0 <= threshold <= 1.0):
+        raise typer.BadParameter(f"Threshold must be between 0.0 and 1.0, got {threshold}")
+    return threshold
+
+
+def get_log_file_path() -> Path:
+    """Get path to server log file"""
+    # Use project logs directory if in project, otherwise home directory
+    if Path("logs").exists():
+        return Path("logs") / "server.log"
+    else:
+        log_dir = Path.home() / ".lumni" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        return log_dir / "server.log"
+
+
+# JSON Output Utilities
+
+def should_output_json() -> bool:
+    """Check if JSON output is requested"""
+    if cli_context is None:
+        return False
+    try:
+        context = cli_context.get()
+        return getattr(context, 'json_output', False)
+    except LookupError:
+        return False
+
+
+def is_quiet_mode() -> bool:
+    """Check if quiet mode is enabled"""
+    if cli_context is None:
+        return False
+    try:
+        context = cli_context.get()
+        return getattr(context, 'quiet', False)
+    except LookupError:
+        return False
+
+
+def is_verbose_mode() -> bool:
+    """Check if verbose mode is enabled"""
+    if cli_context is None:
+        return False
+    try:
+        context = cli_context.get()
+        return getattr(context, 'verbose', False)
+    except LookupError:
+        return False
+
+
+def output_json(data: Any, indent: int = 2):
+    """Output data as JSON"""
+    try:
+        json_str = json.dumps(data, indent=indent, default=_json_serializer)
+        console.print(json_str)
+    except (TypeError, ValueError) as e:
+        print_error(f"Failed to serialize output as JSON: {e}")
+        raise typer.Exit(1)
+
+
+def _json_serializer(obj: Any) -> Any:
+    """Custom JSON serializer for datetime and other types"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, timedelta):
+        return obj.total_seconds()
+    elif isinstance(obj, Path):
+        return str(obj)
+    elif hasattr(obj, '__dict__'):
+        return obj.__dict__
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+
+def table_to_dict(table: Table) -> Dict[str, Any]:
+    """Convert a Rich table to a dictionary for JSON output"""
+    # This is a simplified version - Rich tables don't expose their data easily
+    # In practice, commands should build data structures directly
+    return {"note": "Use structured data instead of Rich tables for JSON output"}
+
+
+def format_for_json(value: Any) -> Any:
+    """Format a value for JSON output, removing Rich markup"""
+    if isinstance(value, str):
+        # Remove Rich markup tags like [green], [bold], etc.
+        import re
+        return re.sub(r'\[/?[^\]]+\]', '', value)
+    return value
 

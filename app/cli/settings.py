@@ -31,7 +31,8 @@ from app.cli.utils import (
     MenuContext,
     create_enhanced_menu,
     create_hierarchical_menu,
-    show_breadcrumb
+    show_breadcrumb,
+    validate_threshold,
 )
 from app.config import load_config
 
@@ -771,7 +772,7 @@ def fallback(
 def monitoring(
     enabled: Optional[bool] = typer.Option(None, "--enabled/--disabled", help="Enable or disable monitoring"),
     track_usage: Optional[bool] = typer.Option(None, "--track-usage/--no-track-usage", help="Track usage metrics"),
-    alert_threshold: Optional[float] = typer.Option(None, "--alert-threshold", "-t", help="Alert threshold (0.0-1.0)"),
+    alert_threshold: Optional[float] = typer.Option(None, "--alert-threshold", "-t", help="Alert threshold (0.0-1.0)", callback=lambda x: x if x is None else validate_threshold(x)),
 ):
     """Configure monitoring settings"""
     try:
@@ -850,8 +851,14 @@ def export(
 def import_config(
     input_file: str = typer.Argument(..., help="Input file path"),
     backup: bool = typer.Option(True, "--backup/--no-backup", help="Create backup of current config"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be imported without making changes"),
 ):
-    """Import configuration from a file"""
+    """Import configuration from a file
+    
+    Examples:
+        lumni settings import config.json           # Import configuration
+        lumni settings import config.json --dry-run # Preview import
+    """
     try:
         config_path = get_config_path()
         input_path = Path(input_file)
@@ -859,6 +866,18 @@ def import_config(
         if not input_path.exists():
             print_error(f"Input file not found: {input_file}")
             raise typer.Exit(1)
+        
+        # Load new config to validate
+        with open(input_path, 'r') as f:
+            new_config = json.load(f)
+        
+        if dry_run:
+            console.print(f"[yellow]DRY RUN:[/yellow] Would import configuration from {input_file}")
+            if backup and config_path.exists():
+                console.print(f"  Would create backup: {config_path}.backup")
+            console.print(f"  Would replace current config with settings from {input_file}")
+            console.print(f"  Config sections: {', '.join(new_config.keys())}")
+            return
         
         # Backup current config
         if backup and config_path.exists():
@@ -870,9 +889,6 @@ def import_config(
             print_info(f"Backup created: {backup_path}")
         
         # Import new config
-        with open(input_path, 'r') as f:
-            new_config = json.load(f)
-        
         with open(config_path, 'w') as f:
             json.dump(new_config, f, indent=2)
         
@@ -887,9 +903,41 @@ def import_config(
 def reset(
     section: Optional[str] = typer.Option(None, "--section", "-s", help="Reset specific section (providers, fallback, monitoring)"),
     confirm: bool = typer.Option(False, "--confirm", help="Confirm reset without prompt"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be reset without making changes"),
 ):
-    """Reset configuration to defaults"""
+    """Reset configuration to defaults
+    
+    Examples:
+        lumni settings reset --section providers --confirm    # Reset providers
+        lumni settings reset --section providers --dry-run   # Preview changes
+    """
     try:
+        if dry_run:
+            if not section:
+                print_warning("--dry-run requires --section to be specified")
+                return
+            
+            config_path = get_config_path()
+            if not config_path.exists():
+                print_error("config.json not found")
+                raise typer.Exit(1)
+            
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            console.print(f"[yellow]DRY RUN:[/yellow] Would reset '{section}' section to defaults")
+            
+            if section == "providers":
+                console.print("  Would enable all providers")
+            elif section == "fallback":
+                console.print("  Would reset to: enabled=True, strategy=priority")
+            elif section == "monitoring":
+                console.print("  Would reset to: enabled=True, trackUsage=True, alertThreshold=0.8")
+            else:
+                print_error(f"Unknown section: {section}. Use: providers, fallback, or monitoring")
+                raise typer.Exit(1)
+            return
+        
         if not confirm:
             print_warning("This will reset configuration. Use --confirm to proceed.")
             return

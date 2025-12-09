@@ -19,7 +19,9 @@ from app.cli.utils import (
     create_table,
     print_error,
     format_relative_time,
-    console
+    console,
+    should_output_json,
+    output_json,
 )
 from app.storage.repositories import UsageMetricsRepository
 
@@ -158,7 +160,12 @@ def errors(
 def performance(
     hours: int = typer.Option(24, "--hours", "-h", help="Time window in hours"),
 ):
-    """Show performance metrics"""
+    """Show performance metrics
+    
+    Examples:
+        lumni monitor performance            # Show performance metrics
+        lumni monitor performance --json    # Output as JSON
+    """
     try:
         db = get_db_session()
         since = datetime.now() - timedelta(hours=hours)
@@ -166,8 +173,8 @@ def performance(
         # Get metrics for all providers
         providers = ["groq", "deepseek", "github-copilot", "gemini", "mistral", "codestral", "openrouter"]
         
-        table = create_table(f"Performance Metrics (Last {hours}h)", ["Provider", "Requests", "Avg Tokens/Req", "Error Rate", "Rate Limit Hits"])
-        
+        # Build data structure
+        performance_data = []
         for provider in providers:
             metrics = UsageMetricsRepository.get_by_provider(db, provider, since)
             if metrics:
@@ -179,15 +186,34 @@ def performance(
                 avg_tokens = total_tokens / total_requests if total_requests > 0 else 0
                 error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0
                 
-                error_color = "[red]" if error_rate > 5 else "[yellow]" if error_rate > 1 else "[green]"
-                
-                table.add_row(
-                    provider,
-                    format_number(total_requests),
-                    format_number(avg_tokens, 1),
-                    f"{error_color}{error_rate:.2f}%[/{error_color}]",
-                    format_number(total_rate_limit_hits)
-                )
+                performance_data.append({
+                    "provider": provider,
+                    "requests": total_requests,
+                    "avg_tokens_per_request": round(avg_tokens, 1),
+                    "error_rate_percent": round(error_rate, 2),
+                    "rate_limit_hits": total_rate_limit_hits,
+                })
+        
+        # Output JSON if requested
+        if should_output_json():
+            output_json({"time_window_hours": hours, "performance": performance_data})
+            db.close()
+            return
+        
+        # Otherwise output as table
+        table = create_table(f"Performance Metrics (Last {hours}h)", ["Provider", "Requests", "Avg Tokens/Req", "Error Rate", "Rate Limit Hits"])
+        
+        for perf in performance_data:
+            error_rate = perf["error_rate_percent"]
+            error_color = "[red]" if error_rate > 5 else "[yellow]" if error_rate > 1 else "[green]"
+            
+            table.add_row(
+                perf["provider"],
+                format_number(perf["requests"]),
+                format_number(perf["avg_tokens_per_request"], 1),
+                f"{error_color}{error_rate:.2f}%[/{error_color}]",
+                format_number(perf["rate_limit_hits"])
+            )
         
         console.print(table)
         db.close()

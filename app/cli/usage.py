@@ -17,7 +17,10 @@ from app.cli.utils import (
     print_error,
     parse_time_window,
     format_datetime,
-    console
+    console,
+    should_output_json,
+    output_json,
+    validate_time_window,
 )
 from app.storage.repositories import UsageMetricsRepository
 from app.config.pricing import calculate_cost
@@ -27,10 +30,17 @@ app = typer.Typer(name="usage", help="Usage monitoring commands")
 
 @app.command()
 def show(
-    hours: int = typer.Option(24, "--hours", "-h", help="Time window in hours"),
+    hours: int = typer.Option(24, "--hours", "-h", help="Time window in hours", callback=validate_time_window),
     provider: Optional[str] = typer.Option(None, "--provider", "-p", help="Filter by provider"),
 ):
-    """Show overall usage statistics"""
+    """Show overall usage statistics
+    
+    Examples:
+        lumni usage show                    # Show last 24 hours
+        lumni usage show --hours 48        # Show last 48 hours
+        lumni usage show --provider openai  # Filter by provider
+        lumni usage show --json             # Output as JSON
+    """
     try:
         db = get_db_session()
         since = datetime.now() - timedelta(hours=hours)
@@ -49,7 +59,11 @@ def show(
             title = f"Overall Usage Statistics (Last {hours}h)"
         
         if not metrics:
-            console.print(f"[yellow]No usage data found for the specified time window[/yellow]")
+            if should_output_json():
+                output_json({"time_window_hours": hours, "provider": provider, "summary": {}, "by_provider": {}})
+            else:
+                console.print(f"[yellow]No usage data found for the specified time window[/yellow]")
+            db.close()
             return
         
         # Calculate totals
@@ -73,14 +87,34 @@ def show(
             provider_stats[metric.provider]["errors"] += metric.errors
             provider_stats[metric.provider]["rate_limit_hits"] += metric.rate_limit_hits
         
-        # Create summary table
+        # Build data structure for JSON
+        error_rate = (total_errors / total_requests) * 100 if total_requests > 0 else 0.0
+        usage_data = {
+            "time_window_hours": hours,
+            "provider": provider,
+            "summary": {
+                "total_requests": total_requests,
+                "total_tokens": total_tokens,
+                "total_errors": total_errors,
+                "total_rate_limit_hits": total_rate_limit_hits,
+                "error_rate_percent": round(error_rate, 2),
+            },
+            "by_provider": {k: v for k, v in sorted(provider_stats.items())},
+        }
+        
+        # Output JSON if requested
+        if should_output_json():
+            output_json(usage_data)
+            db.close()
+            return
+        
+        # Otherwise output as tables
         summary_table = create_table("Summary", ["Metric", "Value"])
         summary_table.add_row("Total Requests", format_number(total_requests))
         summary_table.add_row("Total Tokens", format_number(total_tokens))
         summary_table.add_row("Total Errors", format_number(total_errors))
         summary_table.add_row("Rate Limit Hits", format_number(total_rate_limit_hits))
         if total_requests > 0:
-            error_rate = (total_errors / total_requests) * 100
             summary_table.add_row("Error Rate", f"{error_rate:.2f}%")
         
         console.print(summary_table)

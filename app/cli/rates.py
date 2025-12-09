@@ -17,7 +17,9 @@ from app.cli.utils import (
     print_error,
     print_success,
     get_status_color,
-    console
+    console,
+    should_output_json,
+    output_json,
 )
 from app.config.rate_limits import (
     RATE_LIMIT_CONFIGS,
@@ -30,10 +32,33 @@ from app.storage.repositories import UsageMetricsRepository
 app = typer.Typer(name="rates", help="Rate limit management commands")
 
 
-@app.command()
+@app.command("list", "ls")
 def list():
-    """List all rate limit configurations"""
+    """List all rate limit configurations
+    
+    Examples:
+        lumni rates list              # List all rate limits
+        lumni rates list --json      # Output as JSON
+    """
     try:
+        # Build data structure
+        rate_limits_data = []
+        for config in RATE_LIMIT_CONFIGS:
+            rate_limits_data.append({
+                "provider": config.provider,
+                "model": config.model or "default",
+                "requests_per_minute": config.requests_per_minute if config.requests_per_minute > 0 else None,
+                "requests_per_day": config.requests_per_day if config.requests_per_day > 0 else None,
+                "tokens_per_minute": config.tokens_per_minute if config.tokens_per_minute else None,
+                "notes": config.notes or None,
+            })
+        
+        # Output JSON if requested
+        if should_output_json():
+            output_json({"rate_limits": rate_limits_data, "total": len(rate_limits_data)})
+            return
+        
+        # Otherwise output as table
         table = create_table("Rate Limit Configurations", ["Provider", "Model", "RPM", "RPD", "TPM", "Notes"])
         
         for config in RATE_LIMIT_CONFIGS:
@@ -62,14 +87,39 @@ def list():
 def provider(
     provider_name: str = typer.Argument(..., help="Provider name"),
 ):
-    """Show rate limits for a specific provider"""
+    """Show rate limits for a specific provider
+    
+    Examples:
+        lumni rates provider openai          # Show rate limits for OpenAI
+        lumni rates provider openai --json  # Output as JSON
+    """
     try:
         configs = get_provider_rate_limits(provider_name)
         
         if not configs:
-            console.print(f"[yellow]No rate limit configuration found for {provider_name}[/yellow]")
+            if should_output_json():
+                output_json({"provider": provider_name, "rate_limits": []})
+            else:
+                console.print(f"[yellow]No rate limit configuration found for {provider_name}[/yellow]")
             return
         
+        # Build data structure
+        rate_limits_data = []
+        for config in configs:
+            rate_limits_data.append({
+                "model": config.model or "default",
+                "requests_per_minute": config.requests_per_minute if config.requests_per_minute > 0 else None,
+                "requests_per_day": config.requests_per_day if config.requests_per_day > 0 else None,
+                "tokens_per_minute": config.tokens_per_minute if config.tokens_per_minute else None,
+                "notes": config.notes or None,
+            })
+        
+        # Output JSON if requested
+        if should_output_json():
+            output_json({"provider": provider_name, "rate_limits": rate_limits_data})
+            return
+        
+        # Otherwise output as table
         table = create_table(f"Rate Limits for {provider_name}", ["Model", "RPM", "RPD", "TPM", "Notes"])
         
         for config in configs:
@@ -92,14 +142,41 @@ def model(
     provider_name: str = typer.Argument(..., help="Provider name"),
     model_name: str = typer.Argument(..., help="Model name"),
 ):
-    """Show rate limits for a specific model"""
+    """Show rate limits for a specific model
+    
+    Examples:
+        lumni rates model openai gpt-4       # Show rate limits for GPT-4
+        lumni rates model openai gpt-4 --json  # Output as JSON
+    """
     try:
         config = get_model_rate_limit(provider_name, model_name)
         
         if not config:
-            console.print(f"[yellow]No rate limit configuration found for {provider_name}/{model_name}[/yellow]")
+            if should_output_json():
+                output_json({"error": f"No rate limit configuration found for {provider_name}/{model_name}"})
+            else:
+                console.print(f"[yellow]No rate limit configuration found for {provider_name}/{model_name}[/yellow]")
             return
         
+        # Build data structure
+        rate_limit_data = {
+            "provider": provider_name,
+            "model": model_name,
+            "requests_per_minute": config.requests_per_minute if config.requests_per_minute > 0 else None,
+            "requests_per_day": config.requests_per_day if config.requests_per_day > 0 else None,
+            "tokens_per_minute": config.tokens_per_minute if config.tokens_per_minute else None,
+            "tokens_per_day": config.tokens_per_day if config.tokens_per_day else None,
+            "input_tokens_per_minute": config.input_tokens_per_minute if config.input_tokens_per_minute else None,
+            "output_tokens_per_minute": config.output_tokens_per_minute if config.output_tokens_per_minute else None,
+            "notes": config.notes or None,
+        }
+        
+        # Output JSON if requested
+        if should_output_json():
+            output_json(rate_limit_data)
+            return
+        
+        # Otherwise output as table
         table = create_table(f"Rate Limits for {provider_name}/{model_name}", ["Setting", "Value"])
         table.add_row("Requests Per Minute", format_number(config.requests_per_minute) if config.requests_per_minute > 0 else "unlimited")
         table.add_row("Requests Per Day", format_number(config.requests_per_day) if config.requests_per_day > 0 else "unlimited")
