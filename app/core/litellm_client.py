@@ -4,6 +4,7 @@ Wraps litellm.completion() with proxy support and error handling
 """
 
 import os
+import yaml
 from contextvars import ContextVar
 from typing import Optional, Dict, Any, List
 import litellm
@@ -45,6 +46,9 @@ class LiteLLMClient:
             self.logger.info(f"Loaded LiteLLM config from {config_path}")
         else:
             self.logger.warn(f"LiteLLM config file not found: {config_path}")
+        
+        # Cache for config data to avoid repeated file reads
+        self._config_cache: Optional[Dict[str, Any]] = None
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, max_delay=60.0)
     async def chat(
@@ -70,6 +74,46 @@ class LiteLLMClient:
                 {"error": str(e), "model": request.model}
             )
 
+    def _load_config(self) -> Dict[str, Any]:
+        """Load and cache config file"""
+        if self._config_cache is None:
+            if os.path.exists(self.config_path):
+                try:
+                    with open(self.config_path, "r") as f:
+                        self._config_cache = yaml.safe_load(f) or {}
+                except Exception as e:
+                    self.logger.warn(f"Failed to load config file: {str(e)}")
+                    self._config_cache = {}
+            else:
+                self._config_cache = {}
+        return self._config_cache
+
+    def _get_model_config(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """Get model configuration from config file by model_name"""
+        config = self._load_config()
+        model_list = config.get("model_list", [])
+        
+        for model_config in model_list:
+            if model_config.get("model_name") == model_name:
+                return model_config.get("litellm_params", {})
+        
+        return None
+
+    def _needs_explicit_config(self, model: Optional[str], provider: Optional[str]) -> bool:
+        """Check if model needs explicit config loading (GitHub or Gemini models)"""
+        if not model:
+            return False
+        
+        # Check by model name prefix
+        if model.startswith("github-") or model.startswith("gemini-"):
+            return True
+        
+        # Check by provider
+        if provider in ("github-copilot", "github", "gemini"):
+            return True
+        
+        return False
+
     async def _execute_chat(
         self,
         request: ChatRequest,
@@ -84,8 +128,9 @@ class LiteLLMClient:
             ]
 
             # Prepare completion parameters
+            model_name = request.model or litellm.default_model or "gpt-3.5-turbo"
             completion_params: Dict[str, Any] = {
-                "model": request.model or litellm.default_model or "gpt-3.5-turbo",
+                "model": model_name,
                 "messages": messages,
             }
 
@@ -95,6 +140,30 @@ class LiteLLMClient:
                 completion_params["max_tokens"] = request.max_tokens
             if request.stream:
                 completion_params["stream"] = request.stream
+
+            # For GitHub and Gemini models, explicitly load config to get api_base and api_key
+            # This is necessary because LiteLLM may override api_base when model name matches
+            # a known provider (e.g., "openai/gpt-5" routes to OpenAI instead of GitHub)
+            if self._needs_explicit_config(model_name, request.provider):
+                model_config = self._get_model_config(model_name)
+                if model_config:
+                    # Use the actual model ID from config (ensures gemini/ prefix for Gemini)
+                    if "model" in model_config:
+                        completion_params["model"] = model_config["model"]
+                    
+                    # Handle api_base for GitHub models (required to route to GitHub, not default provider)
+                    if "api_base" in model_config:
+                        completion_params["api_base"] = model_config["api_base"]
+                        self.logger.debug(f"Using explicit api_base for {model_name}: {model_config['api_base']}")
+                    
+                    # Handle api_key from config
+                    if "api_key" in model_config:
+                        api_key_env = model_config["api_key"].replace("os.environ/", "")
+                        api_key_value = os.getenv(api_key_env)
+                        if api_key_value:
+                            completion_params["api_key"] = api_key_value
+                        else:
+                            self.logger.warn(f"API key not found in environment: {api_key_env}")
 
             # Configure proxy if provided (using contextvars for thread-local storage)
             if proxy:
