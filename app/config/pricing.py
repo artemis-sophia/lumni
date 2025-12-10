@@ -19,21 +19,29 @@ class ModelPricing:
 
 # Pricing configurations for all models
 MODEL_PRICING: List[ModelPricing] = [
-    # GitHub Models API
-    ModelPricing('github-copilot', 'openai/gpt-4o', 2.50, 10.00, 'Pricing through GitHub Models API'),
-    ModelPricing('github-copilot', 'openai/gpt-4-turbo', 10.00, 30.00),
-    ModelPricing('github-copilot', 'openai/gpt-3.5-turbo', 0.50, 1.50),
-    ModelPricing('github-copilot', 'anthropic/claude-3-opus', 15.00, 75.00),
-    ModelPricing('github-copilot', 'anthropic/claude-3-sonnet', 3.00, 15.00),
-    ModelPricing('github-copilot', 'anthropic/claude-3-haiku', 0.80, 4.00),
+    # GitHub Models API (Free with GitHub Pro account)
+    # OpenAI Models
+    ModelPricing('github-copilot', 'openai/gpt-4o', 0.00, 0.00, 'Free with GitHub Pro account'),
+    ModelPricing('github-copilot', 'openai/gpt-4-turbo', 0.00, 0.00, 'Free with GitHub Pro account'),
+    ModelPricing('github-copilot', 'openai/gpt-3.5-turbo', 0.00, 0.00, 'Free with GitHub Pro account'),
+    ModelPricing('github-copilot', 'openai/o1', 0.00, 0.00, 'Free with GitHub Pro account'),
+    # Cohere Models
+    ModelPricing('github-copilot', 'cohere/cohere-command-a', 0.00, 0.00, 'Free with GitHub Pro account'),
+    ModelPricing('github-copilot', 'cohere/cohere-command-r-08-2024', 0.00, 0.00, 'Free with GitHub Pro account'),
+    ModelPricing('github-copilot', 'cohere/cohere-command-r-plus-08-2024', 0.00, 0.00, 'Free with GitHub Pro account'),
+    # DeepSeek Models
+    ModelPricing('github-copilot', 'deepseek/deepseek-r1', 0.00, 0.00, 'Free with GitHub Pro account'),
+    ModelPricing('github-copilot', 'deepseek/deepseek-r1-0528', 0.00, 0.00, 'Free with GitHub Pro account'),
+    ModelPricing('github-copilot', 'deepseek/deepseek-v3-0324', 0.00, 0.00, 'Free with GitHub Pro account'),
+    # Meta Vision Models
+    ModelPricing('github-copilot', 'meta/llama-3.2-11b-vision-instruct', 0.00, 0.00, 'Free with GitHub Pro account'),
+    ModelPricing('github-copilot', 'meta/llama-3.2-90b-vision-instruct', 0.00, 0.00, 'Free with GitHub Pro account'),
 
     # Groq (Free tier, no direct pricing)
     ModelPricing('groq', 'llama-3.1-8b-instant', 0.00, 0.00, 'Free tier available'),
     ModelPricing('groq', 'llama-3.3-70b-versatile', 0.00, 0.00, 'Free tier available'),
-    ModelPricing('groq', 'llama-3.1-70b-versatile', 0.00, 0.00, 'Free tier available'),
-    ModelPricing('groq', 'llama-3.1-405b-reasoning', 0.00, 0.00, 'Free tier available'),
-    ModelPricing('groq', 'mixtral-8x7b-32768', 0.00, 0.00, 'Free tier available'),
-    ModelPricing('groq', 'gemma-7b-it', 0.00, 0.00, 'Free tier available'),
+    ModelPricing('groq', 'meta-llama/llama-4-maverick-17b-128e-instruct', 0.00, 0.00, 'Free tier available - Preview model'),
+    ModelPricing('groq', 'meta-llama/llama-4-scout-17b-16e-instruct', 0.00, 0.00, 'Free tier available - Preview model'),
 
     # DeepSeek
     ModelPricing('deepseek', 'deepseek-chat', 0.27, 1.10, 'V3 model. Off-peak pricing available (75% discount)'),
@@ -54,10 +62,20 @@ MODEL_PRICING: List[ModelPricing] = [
     ModelPricing('openrouter', 'mistralai/mistral-medium', 2.00, 6.00),
 
     # Google Gemini
+    # Flash Models
     ModelPricing('gemini', 'gemini-2.0-flash-exp', 0.10, 0.40, 'Experimental model'),
-    ModelPricing('gemini', 'gemini-1.5-flash', 0.07, 0.30),
-    ModelPricing('gemini', 'gemini-1.5-pro', 1.25, 5.00),
-    ModelPricing('gemini', 'gemini-1.5-pro-latest', 1.25, 5.00),
+    ModelPricing('gemini', 'gemini-2.0-flash', 0.10, 0.40),
+    ModelPricing('gemini', 'gemini-2.0-flash-lite', 0.10, 0.40),
+    ModelPricing('gemini', 'gemini-2.5-flash', 0.10, 0.40),
+    ModelPricing('gemini', 'gemini-flash-latest', 0.10, 0.40),
+    # Pro Models
+    ModelPricing('gemini', 'gemini-2.5-pro', 1.25, 5.00, 'Latest generation Pro model'),
+    ModelPricing('gemini', 'gemini-pro-latest', 1.25, 5.00, 'Latest Pro model alias'),
+    # Note: gemini-2.0-pro and gemini-2.0-pro-exp do not exist (tested and confirmed)
+    # Retired models (kept for reference)
+    ModelPricing('gemini', 'gemini-1.5-flash', 0.07, 0.30, 'Retired December 2025'),
+    ModelPricing('gemini', 'gemini-1.5-pro', 1.25, 5.00, 'Retired December 2025'),
+    ModelPricing('gemini', 'gemini-1.5-pro-latest', 1.25, 5.00, 'Retired December 2025'),
 
     # Mistral AI
     ModelPricing('mistral', 'mistral-tiny', 0.20, 0.60),

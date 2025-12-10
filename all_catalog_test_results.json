@@ -1,0 +1,353 @@
+{
+  "working": [
+    {
+      "id": "openai/gpt-4.1",
+      "name": "OpenAI GPT-4.1",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 1.527069330215454
+    },
+    {
+      "id": "openai/gpt-4.1-mini",
+      "name": "OpenAI GPT-4.1-mini",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 0.9215037822723389
+    },
+    {
+      "id": "openai/gpt-4.1-nano",
+      "name": "OpenAI GPT-4.1-nano",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 1.2153301239013672
+    },
+    {
+      "id": "openai/gpt-4o",
+      "name": "OpenAI GPT-4o",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: Test",
+      "elapsed": 1.0401909351348877
+    },
+    {
+      "id": "openai/gpt-4o-mini",
+      "name": "OpenAI GPT-4o mini",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: Test.",
+      "elapsed": 1.044753074645996
+    },
+    {
+      "id": "openai/gpt-5",
+      "name": "OpenAI gpt-5",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 4.402000188827515
+    },
+    {
+      "id": "openai/gpt-5-chat",
+      "name": "OpenAI gpt-5-chat (preview)",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 1.3910315036773682
+    },
+    {
+      "id": "openai/gpt-5-mini",
+      "name": "OpenAI gpt-5-mini",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 4.424962043762207
+    },
+    {
+      "id": "openai/gpt-5-nano",
+      "name": "OpenAI gpt-5-nano",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 2.4940929412841797
+    },
+    {
+      "id": "openai/o1",
+      "name": "OpenAI o1",
+      "provider": "openai",
+      "configured": false,
+      "message": "Success: test",
+      "elapsed": 3.0908286571502686
+    },
+    {
+      "id": "openai/o3",
+      "name": "OpenAI o3",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 1.7735979557037354
+    },
+    {
+      "id": "openai/o3-mini",
+      "name": "OpenAI o3-mini",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 2.3034346103668213
+    },
+    {
+      "id": "openai/o4-mini",
+      "name": "OpenAI o4-mini",
+      "provider": "openai",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 3.071873188018799
+    },
+    {
+      "id": "cohere/cohere-command-a",
+      "name": "Cohere Command A",
+      "provider": "cohere",
+      "configured": false,
+      "message": "Success: test",
+      "elapsed": 1.0951428413391113
+    },
+    {
+      "id": "cohere/cohere-command-r-08-2024",
+      "name": "Cohere Command R 08-2024",
+      "provider": "cohere",
+      "configured": false,
+      "message": "Success: Test.",
+      "elapsed": 1.0600078105926514
+    },
+    {
+      "id": "cohere/cohere-command-r-plus-08-2024",
+      "name": "Cohere Command R+ 08-2024",
+      "provider": "cohere",
+      "configured": false,
+      "message": "Success: test",
+      "elapsed": 2.5305192470550537
+    },
+    {
+      "id": "deepseek/deepseek-r1",
+      "name": "DeepSeek-R1",
+      "provider": "deepseek",
+      "configured": false,
+      "message": "Success: <think>\nOkay, the user just said \"test\". Let me th",
+      "elapsed": 3.974928140640259
+    },
+    {
+      "id": "deepseek/deepseek-r1-0528",
+      "name": "DeepSeek-R1-0528",
+      "provider": "deepseek",
+      "configured": false,
+      "message": "Success: <think>\nHmm, the user just said \"Say 'test'\". This",
+      "elapsed": 2.753302574157715
+    },
+    {
+      "id": "deepseek/deepseek-v3-0324",
+      "name": "DeepSeek-V3-0324",
+      "provider": "deepseek",
+      "configured": false,
+      "message": "Success: \"test\"  \n\nLet me know if you'd like me to test any",
+      "elapsed": 0.9749681949615479
+    },
+    {
+      "id": "meta/llama-3.2-11b-vision-instruct",
+      "name": "Llama-3.2-11B-Vision-Instruct",
+      "provider": "meta",
+      "configured": false,
+      "message": "Success: Test.",
+      "elapsed": 1.0640764236450195
+    },
+    {
+      "id": "meta/llama-3.2-90b-vision-instruct",
+      "name": "Llama-3.2-90B-Vision-Instruct",
+      "provider": "meta",
+      "configured": false,
+      "message": "Success: test",
+      "elapsed": 1.1693735122680664
+    },
+    {
+      "id": "meta/llama-3.3-70b-instruct",
+      "name": "Llama-3.3-70B-Instruct",
+      "provider": "meta",
+      "configured": true,
+      "message": "Success: test",
+      "elapsed": 1.492825984954834
+    }
+  ],
+  "error": [
+    {
+      "id": "openai/o1-mini",
+      "name": "OpenAI o1-mini",
+      "provider": "openai",
+      "configured": false,
+      "message": "HTTP 400: Model o4-mini is enabled only for api versions 2024-12-01-preview and later",
+      "elapsed": 0.8264496326446533
+    },
+    {
+      "id": "openai/o1-preview",
+      "name": "OpenAI o1-preview",
+      "provider": "openai",
+      "configured": false,
+      "message": "HTTP 400: Model o1 is enabled only for api versions 2024-12-01-preview and later",
+      "elapsed": 1.3168766498565674
+    },
+    {
+      "id": "openai/text-embedding-3-large",
+      "name": "OpenAI Text Embedding 3 (large)",
+      "provider": "openai",
+      "configured": false,
+      "message": "Embedding model - different endpoint",
+      "elapsed": 0.0
+    },
+    {
+      "id": "openai/text-embedding-3-small",
+      "name": "OpenAI Text Embedding 3 (small)",
+      "provider": "openai",
+      "configured": false,
+      "message": "Embedding model - different endpoint",
+      "elapsed": 0.0
+    },
+    {
+      "id": "ai21-labs/ai21-jamba-1.5-large",
+      "name": "AI21 Jamba 1.5 Large",
+      "provider": "ai21-labs",
+      "configured": false,
+      "message": "HTTP 400: Unknown model: ai21-jamba-1.5-large",
+      "elapsed": 0.5946488380432129
+    },
+    {
+      "id": "meta/llama-4-maverick-17b-128e-instruct-fp8",
+      "name": "Llama 4 Maverick 17B 128E Instruct FP8",
+      "provider": "meta",
+      "configured": true,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5706748962402344
+    },
+    {
+      "id": "meta/llama-4-scout-17b-16e-instruct",
+      "name": "Llama 4 Scout 17B 16E Instruct",
+      "provider": "meta",
+      "configured": true,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5798957347869873
+    },
+    {
+      "id": "meta/meta-llama-3.1-405b-instruct",
+      "name": "Meta-Llama-3.1-405B-Instruct",
+      "provider": "meta",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5814056396484375
+    },
+    {
+      "id": "meta/meta-llama-3.1-8b-instruct",
+      "name": "Meta-Llama-3.1-8B-Instruct",
+      "provider": "meta",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5964710712432861
+    },
+    {
+      "id": "mistral-ai/codestral-2501",
+      "name": "Codestral 25.01",
+      "provider": "mistral-ai",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.6003327369689941
+    },
+    {
+      "id": "mistral-ai/ministral-3b",
+      "name": "Ministral 3B",
+      "provider": "mistral-ai",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.7153689861297607
+    },
+    {
+      "id": "mistral-ai/mistral-medium-2505",
+      "name": "Mistral Medium 3 (25.05)",
+      "provider": "mistral-ai",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5806162357330322
+    },
+    {
+      "id": "mistral-ai/mistral-small-2503",
+      "name": "Mistral Small 3.1",
+      "provider": "mistral-ai",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.6194560527801514
+    },
+    {
+      "id": "xai/grok-3",
+      "name": "Grok 3",
+      "provider": "xai",
+      "configured": true,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.6239748001098633
+    },
+    {
+      "id": "xai/grok-3-mini",
+      "name": "Grok 3 Mini",
+      "provider": "xai",
+      "configured": true,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5714230537414551
+    },
+    {
+      "id": "microsoft/mai-ds-r1",
+      "name": "MAI-DS-R1",
+      "provider": "microsoft",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.6504545211791992
+    },
+    {
+      "id": "microsoft/phi-4",
+      "name": "Phi-4",
+      "provider": "microsoft",
+      "configured": true,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.6645007133483887
+    },
+    {
+      "id": "microsoft/phi-4-mini-instruct",
+      "name": "Phi-4-mini-instruct",
+      "provider": "microsoft",
+      "configured": true,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5835084915161133
+    },
+    {
+      "id": "microsoft/phi-4-mini-reasoning",
+      "name": "Phi-4-mini-reasoning",
+      "provider": "microsoft",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5869457721710205
+    },
+    {
+      "id": "microsoft/phi-4-multimodal-instruct",
+      "name": "Phi-4-multimodal-instruct",
+      "provider": "microsoft",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.5871367454528809
+    },
+    {
+      "id": "microsoft/phi-4-reasoning",
+      "name": "Phi-4-reasoning",
+      "provider": "microsoft",
+      "configured": false,
+      "message": "HTTP 429: Too many requests. For more on scraping GitHub and how it may affect your rights, please review our ",
+      "elapsed": 0.6345245838165283
+    }
+  ],
+  "not_found": [],
+  "auth_error": [],
+  "timeout": []
+}

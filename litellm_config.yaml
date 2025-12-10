@@ -2,37 +2,15 @@
 # This file configures all AI providers and their models
 
 model_list:
-  # OpenAI Models
-  - model_name: gpt-4o
-    litellm_params:
-      model: openai/gpt-4o
-      api_key: os.environ/OPENAI_API_KEY
-  
-  - model_name: gpt-4-turbo
-    litellm_params:
-      model: openai/gpt-4-turbo
-      api_key: os.environ/OPENAI_API_KEY
-  
-  - model_name: gpt-3.5-turbo
-    litellm_params:
-      model: openai/gpt-3.5-turbo
-      api_key: os.environ/OPENAI_API_KEY
+  # Note: OpenAI direct models removed - all are pay-as-you-go (not free)
+  # Use GitHub Models API for free OpenAI models (requires GitHub Pro account)
 
   # Groq Models (Free Tier - Rate-Limited, No Credits Required)
   # All Groq models are free tier with rate limits - no credits needed
+  # Note: Several models have been decommissioned or don't exist - only working models are included
   - model_name: groq-llama-3.1-8b-instant
     litellm_params:
       model: groq/llama-3.1-8b-instant
-      api_key: os.environ/GROQ_API_KEY
-  
-  - model_name: groq-mixtral-8x7b
-    litellm_params:
-      model: groq/mixtral-8x7b-32768
-      api_key: os.environ/GROQ_API_KEY
-  
-  - model_name: groq-gemma-7b-it
-    litellm_params:
-      model: groq/gemma-7b-it
       api_key: os.environ/GROQ_API_KEY
   
   - model_name: groq-llama-3.3-70b-versatile
@@ -40,106 +18,300 @@ model_list:
       model: groq/llama-3.3-70b-versatile
       api_key: os.environ/GROQ_API_KEY
   
-  - model_name: groq-llama-3.1-70b-versatile
+  # Llama 4 Models (Preview - Free Tier Available)
+  - model_name: groq-llama-4-maverick
     litellm_params:
-      model: groq/llama-3.1-70b-versatile
+      model: groq/meta-llama/llama-4-maverick-17b-128e-instruct
       api_key: os.environ/GROQ_API_KEY
+    # Note: Preview model, may have different rate limits
   
-  - model_name: groq-llama-3.1-405b-reasoning
+  - model_name: groq-llama-4-scout
     litellm_params:
-      model: groq/llama-3.1-405b-reasoning
+      model: groq/meta-llama/llama-4-scout-17b-16e-instruct
       api_key: os.environ/GROQ_API_KEY
+    # Note: Preview model, may have different rate limits
 
-  # DeepSeek Models (Pay-as-You-Go API - No Free Tier)
-  # DeepSeek API requires pay-as-you-go pricing (no free tier for API access)
-  # Free tier is only available for chat interface (chat.deepseek.com), not API
-  - model_name: deepseek-chat
-    litellm_params:
-      model: deepseek/deepseek-chat
-      api_key: os.environ/DEEPSEEK_API_KEY
-  
-  - model_name: deepseek-coder
-    litellm_params:
-      model: deepseek/deepseek-coder
-      api_key: os.environ/DEEPSEEK_API_KEY
+  # Note: DeepSeek models removed - all are pay-as-you-go (not free)
+  # Use OpenRouter for free DeepSeek models (deepseek/deepseek-chat:free)
 
-  # Mistral AI Models
+  # Mistral AI Models (Free Tier Available)
+  # Mistral AI offers a free tier with rate limits - no credits required
   - model_name: mistral-large
     litellm_params:
       model: mistral/mistral-large-latest
+      api_key: os.environ/MISTRAL_API_KEY
+  
+  - model_name: mistral-small
+    litellm_params:
+      model: mistral/mistral-small-latest
+      api_key: os.environ/MISTRAL_API_KEY
+  
+  - model_name: mistral-medium
+    litellm_params:
+      model: mistral/mistral-medium-latest
+      api_key: os.environ/MISTRAL_API_KEY
+  
+  - model_name: pixtral-12b
+    litellm_params:
+      model: mistral/pixtral-12b
       api_key: os.environ/MISTRAL_API_KEY
   
   - model_name: codestral
     litellm_params:
       model: mistral/codestral-latest
       api_key: os.environ/MISTRAL_API_KEY
+  # Note: codestral-mamba-latest does not exist - only codestral-latest is available
 
   # Google Gemini Models (Free Tier - No Credits Required)
   # All Gemini models are free with rate limits - no credits needed
-  - model_name: gemini-1.5-flash
+  # Note: Gemini 1.5 models were retired as of December 2025 - use Gemini 2.0/2.5 models instead
+  # Direct API testing shows these models work (some may be rate-limited during testing)
+  
+  # Gemini 2.5 Models (Latest Generation)
+  - model_name: gemini-2.5-flash
     litellm_params:
-      model: gemini/gemini-1.5-flash
+      model: gemini/gemini-2.5-flash
       api_key: os.environ/GEMINI_API_KEY
   
-  - model_name: gemini-1.5-pro
+  - model_name: gemini-flash-latest
     litellm_params:
-      model: gemini/gemini-1.5-pro
+      model: gemini/gemini-flash-latest
       api_key: os.environ/GEMINI_API_KEY
   
-  - model_name: gemini-1.5-pro-latest
-    litellm_params:
-      model: gemini/gemini-1.5-pro-latest
-      api_key: os.environ/GEMINI_API_KEY
-  
+  # Gemini 2.0 Models (Current Generation - may be rate-limited)
   - model_name: gemini-2.0-flash-exp
     litellm_params:
       model: gemini/gemini-2.0-flash-exp
       api_key: os.environ/GEMINI_API_KEY
+    # Note: May be rate-limited during testing but model exists
+  
+  - model_name: gemini-2.0-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GEMINI_API_KEY
+    # Note: May be rate-limited during testing but model exists
+  
+  - model_name: gemini-2.0-flash-lite
+    litellm_params:
+      model: gemini/gemini-2.0-flash-lite
+      api_key: os.environ/GEMINI_API_KEY
+    # Note: May be rate-limited during testing but model exists
+  
+  # Gemini Pro Models (Powerful - may be rate-limited)
+  - model_name: gemini-2.5-pro
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+    # Note: Confirmed working, rate-limited during testing (model exists and is accessible)
+  
+  - model_name: gemini-pro-latest
+    litellm_params:
+      model: gemini/gemini-pro-latest
+      api_key: os.environ/GEMINI_API_KEY
+    # Note: Confirmed working, rate-limited during testing (model exists and is accessible)
+  
+  # Note: The following pro models do not exist:
+  # - gemini-2.0-pro (model not found in API)
+  # - gemini-2.0-pro-exp (model not found in API)
+  
+  # Note: The following models are retired or don't exist:
+  # - gemini-1.5-flash, gemini-1.5-pro (retired as of December 2025)
+  # - gemini-2.0-flash-thinking-exp (does not exist)
 
   # GitHub Models API (Free for GitHub Pro/Education - No Credits Required)
   # Requires GitHub Pro account or GitHub Education Pack
   # All models are free - no credits needed with Pro account
-  - model_name: github-gpt-4o
+  # Note: Only models verified to exist in the GitHub Models API catalog are included
+  # WARNING: GitHub Models API has compatibility issues with LiteLLM Router
+  # Use direct HTTP API calls (see scripts/test_github_models.py) for testing
+  
+  # OpenAI Models via GitHub
+  - model_name: github/openai-gpt-5
+    litellm_params:
+      model: openai/gpt-5
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+    # Note: This model may not support max_tokens parameter
+  
+  - model_name: github/openai-gpt-5-chat
+    litellm_params:
+      model: openai/gpt-5-chat
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+    # Note: Preview model, may not support max_tokens parameter
+  
+  - model_name: github/openai-gpt-5-mini
+    litellm_params:
+      model: openai/gpt-5-mini
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/openai-gpt-5-nano
+    litellm_params:
+      model: openai/gpt-5-nano
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/openai-gpt-4.1
+    litellm_params:
+      model: openai/gpt-4.1
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/openai-gpt-4.1-mini
+    litellm_params:
+      model: openai/gpt-4.1-mini
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/openai-gpt-4.1-nano
+    litellm_params:
+      model: openai/gpt-4.1-nano
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/openai-gpt-4o
     litellm_params:
       model: openai/gpt-4o
       api_key: os.environ/GITHUB_TOKEN
-      api_base: https://models.github.ai/v1
+      api_base: https://models.github.ai/inference
   
-  - model_name: github-gpt-4-turbo
+  - model_name: github/openai-gpt-4o-mini
     litellm_params:
-      model: openai/gpt-4-turbo
+      model: openai/gpt-4o-mini
       api_key: os.environ/GITHUB_TOKEN
-      api_base: https://models.github.ai/v1
+      api_base: https://models.github.ai/inference
   
-  - model_name: github-gpt-3.5-turbo
+  - model_name: github/openai-o3
     litellm_params:
-      model: openai/gpt-3.5-turbo
+      model: openai/o3
       api_key: os.environ/GITHUB_TOKEN
-      api_base: https://models.github.ai/v1
+      api_base: https://models.github.ai/inference
+    # Note: This model may not support max_tokens parameter
   
-  - model_name: github-claude-3-opus
+  - model_name: github/openai-o3-mini
     litellm_params:
-      model: anthropic/claude-3-opus
+      model: openai/o3-mini
       api_key: os.environ/GITHUB_TOKEN
-      api_base: https://models.github.ai/v1
+      api_base: https://models.github.ai/inference
+    # Note: This model may not support max_tokens parameter
   
-  - model_name: github-claude-3-sonnet
+  - model_name: github/openai-o4-mini
     litellm_params:
-      model: anthropic/claude-3-sonnet
+      model: openai/o4-mini
       api_key: os.environ/GITHUB_TOKEN
-      api_base: https://models.github.ai/v1
+      api_base: https://models.github.ai/inference
+    # Note: This model may not support max_tokens parameter
   
-  - model_name: github-claude-3-haiku
+  # Meta Models via GitHub
+  - model_name: github/meta-llama-3.3-70b
     litellm_params:
-      model: anthropic/claude-3-haiku
+      model: meta/llama-3.3-70b-instruct
       api_key: os.environ/GITHUB_TOKEN
-      api_base: https://models.github.ai/v1
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/meta-llama-4-maverick
+    litellm_params:
+      model: meta/llama-4-maverick-17b-128e-instruct-fp8
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/meta-llama-4-scout
+    litellm_params:
+      model: meta/llama-4-scout-17b-16e-instruct
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  # Microsoft Models via GitHub
+  - model_name: github/microsoft-phi-4
+    litellm_params:
+      model: microsoft/phi-4
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/microsoft-phi-4-mini
+    litellm_params:
+      model: microsoft/phi-4-mini-instruct
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  # xAI Models via GitHub
+  - model_name: github/xai-grok-3
+    litellm_params:
+      model: xai/grok-3
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/xai-grok-3-mini
+    litellm_params:
+      model: xai/grok-3-mini
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
 
-  # OpenRouter Models (Free Tier - Requires Credits in Balance)
-  # Note: OpenRouter requires account credits ($10+ recommended) even for free models
-  # With $10+ credits: 1,000 requests/day, 20 requests/minute
-  # Without credits: 50 requests/day, 20 requests/minute
-  # Free models (credits not consumed, but account must have credits):
+  # OpenAI O1 Models via GitHub
+  - model_name: github/openai-o1
+    litellm_params:
+      model: openai/o1
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+    # Note: This model may not support max_tokens parameter
+
+  # Cohere Models via GitHub
+  - model_name: github/cohere-command-a
+    litellm_params:
+      model: cohere/cohere-command-a
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/cohere-command-r
+    litellm_params:
+      model: cohere/cohere-command-r-08-2024
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/cohere-command-r-plus
+    litellm_params:
+      model: cohere/cohere-command-r-plus-08-2024
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+
+  # DeepSeek Models via GitHub
+  - model_name: github/deepseek-r1
+    litellm_params:
+      model: deepseek/deepseek-r1
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/deepseek-r1-0528
+    litellm_params:
+      model: deepseek/deepseek-r1-0528
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/deepseek-v3
+    litellm_params:
+      model: deepseek/deepseek-v3-0324
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+
+  # Meta Vision Models via GitHub
+  - model_name: github/meta-llama-3.2-11b-vision
+    litellm_params:
+      model: meta/llama-3.2-11b-vision-instruct
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+  
+  - model_name: github/meta-llama-3.2-90b-vision
+    litellm_params:
+      model: meta/llama-3.2-90b-vision-instruct
+      api_key: os.environ/GITHUB_TOKEN
+      api_base: https://models.github.ai/inference
+
+  # OpenRouter Models (Free Tier - No Credits Required)
+  # Note: OpenRouter free models work WITHOUT credits (50 requests/day limit)
+  # With $10+ credits: 1,000 requests/day, 20 requests/minute (increased limit)
+  # Without credits: 50 requests/day, 20 requests/minute (still works!)
+  # Free models (credits not consumed when using free models):
   - model_name: openrouter-llama-3.1-8b
     litellm_params:
       model: openrouter/meta-llama/llama-3.1-8b-instruct
@@ -159,17 +331,44 @@ model_list:
     litellm_params:
       model: openrouter/deepseek/deepseek-chat:free
       api_key: os.environ/OPENROUTER_API_KEY
+  
+  - model_name: openrouter-llama-3.2-11b
+    litellm_params:
+      model: openrouter/meta-llama/llama-3.2-11b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+  
+  - model_name: openrouter-llama-3.2-90b
+    litellm_params:
+      model: openrouter/meta-llama/llama-3.2-90b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+  
+  - model_name: openrouter-mistral-small
+    litellm_params:
+      model: openrouter/mistralai/mistral-small
+      api_key: os.environ/OPENROUTER_API_KEY
+  
+  - model_name: openrouter-qwen-2.5-7b
+    litellm_params:
+      model: openrouter/qwen/qwen-2.5-7b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
 
 # Router Settings
 router_settings:
   num_retries: 3
   timeout: 60
   fallbacks:
-    - gpt-4o
+    # Groq Models (fast, free)
     - groq-llama-3.1-8b-instant
-    - deepseek-chat
-    - gemini-1.5-flash
-    - github-gpt-3.5-turbo
+    - groq-llama-3.3-70b-versatile
+    # Gemini Flash Models (fast, confirmed working, free)
+    - gemini-2.5-flash
+    - gemini-flash-latest
+    - gemini-2.0-flash-exp
+    # Gemini Pro Models (powerful, may be rate-limited - use after flash models)
+    - gemini-2.5-pro
+    - gemini-pro-latest
+    # Other providers
+    - mistral-small
     - openrouter-llama-3.1-8b
     - openrouter-phi-3-mini
     - openrouter-gemini-flash
@@ -198,11 +397,10 @@ litellm_settings:
 rate_limit_settings:
   # Global rate limit
   global_rate_limit: "1000/minute"
-  # Per-model rate limits
+  # Per-model rate limits (only free models configured)
   model_rate_limits:
-    "gpt-4o": "50/minute"
-    "gpt-4-turbo": "100/minute"
-    "gpt-3.5-turbo": "500/minute"
     "groq-llama-3.1-8b-instant": "600/minute"
-    "deepseek-chat": "100/minute"
+    "groq-llama-3.3-70b-versatile": "600/minute"
+    # Note: OpenAI direct, DeepSeek direct models removed (all paid)
+    # Use GitHub Models API or OpenRouter for free access to these models
 
